@@ -25,12 +25,13 @@ import os
 # pygame-ce içe aktarılırken basılan karşılama satırını sustur
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
+__version__ = "0.5.0"
+
+from . import settings  # noqa: E402
 from .flow import (ask, ask_path, choose, choose_many, confirm, error, info, ok, print,  # noqa: E402,A004
-                   progress, rule, setup, spinner, table, track, warn)
+                   progress, restyle, rule, setup, spinner, table, track, warn)
 from .markup import escape, plain_text  # noqa: E402
 from .theme import DENSITIES, LOOKS, THEMES, Theme, with_look  # noqa: E402
-
-__version__ = "0.4.0"
 
 try:  # bileşen katmanı pygame-ce ister; yoksa akış API'si terminalde çalışmayı sürdürür
     import pygame as _pygame  # noqa: F401

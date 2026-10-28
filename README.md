@@ -3,15 +3,33 @@
 CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla. pygame-ce üzerinde çalışan bir Python
 arayüz kütüphanesi.
 
-![demo](prototip/ekran/demo-calisiyor.png)
+![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.4.0.** İki katman da hazır. Akış API'si (`ask`, `choose`, `confirm`, `track`…)
-> script'lere birkaç satırla pencere verir; pencere açılamazsa aynı script terminalde çalışır.
+> **Durum: v0.5.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
+> `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
+> script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
 > öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar ve 18 bileşen var;
 > üç sütunlu bir demo uygulama örnek.
 
-![komut paleti](prototip/ekran/demo-palet.png)
+![komut paleti](docs/ekran/demo-palet.png)
+
+## Kurulum
+
+```bash
+pip install termik
+```
+
+Python 3.11 ya da daha yenisi gerekir; pygame-ce kendiliğinden kurulur. Kurulunca `termik` komutu
+gelir:
+
+```bash
+termik akis       # akış API'si örneği: script'e pencere
+termik demo       # bileşen katmanı demosu: çok panelli uygulama
+termik ayarlar    # görünüm tercihlerini seç ve kaydet
+```
+
+pygame-ce kurulamayan bir ortamda (bazı sunucular) akış API'si terminalde çalışmayı sürdürür.
 
 ## Hızlı başlangıç
 
@@ -55,7 +73,7 @@ Merhaba().run()
 Pencere bir terminal oturumu gibi alt alta akan bir dökümdür. Cevaplanan soru tek satırlık özete
 döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en altta ve odaktadır.
 
-![akış: seçim](prototip/ekran/akis-secim.png)
+![akış: seçim](docs/ekran/akis-secim.png)
 
 | Fonksiyon | İş |
 |---|---|
@@ -73,7 +91,7 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 | `spinner(etiket)` | `with` bloğu süresince dönen işaret ve geçen süre; `sp.update("12 MB alındı")` açıklama ekler |
 | `setup(title=, theme=, look=, density=, keep_open=, mode=, …)` | İlk çağrıdan önce: pencere başlığı, görünüm ve biçim belirteçleri (bileşen katmanındakilerle aynı) |
 
-![akış: ilerleme](prototip/ekran/akis-ilerleme.png)
+![akış: ilerleme](docs/ekran/akis-ilerleme.png)
 
 **Nasıl çalışır:**
 
@@ -89,7 +107,7 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 - Pencerede ctrl+p komut paleti (tema, yoğunluk), ctrl+shift+c dökümü panoya kopyalar. Dökümde
   en çok 2000 çıktı satırı tutulur.
 
-![akış: gözat](prototip/ekran/akis-gozat.png)
+![akış: gözat](docs/ekran/akis-gozat.png)
 
 **Terminal kipi.** Pencere açılamıyorsa (pygame-ce kurulu değil, Linux'ta görüntü sunucusu yok)
 aynı script terminalde çalışır. macOS pencereyi ana thread'de istediği için orada da şimdilik terminal
@@ -115,7 +133,7 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 `termik.flow.Session(...)` ile kurulur ve aynı metotları taşır; testlerde
 `Session(mode="window", headless=True)` pencereyi görünmez açar.
 
-![akış: bitti](prototip/ekran/akis-bitti.png)
+![akış: bitti](docs/ekran/akis-bitti.png)
 
 ## Temel kavramlar
 
@@ -197,10 +215,16 @@ ekler); kaydırma, satır numarası ve gönderme tuşu birer seçenek.
 pencereyi kapatmak `KeyboardInterrupt`); cevaplanan soru tek satırlık özete döner; pencere
 açılamazsa terminale düşülür.
 
+**Paketleme ve ayarlar turu:** `pip install termik` (setuptools, MIT lisansı; gömülü font OFL'li);
+`termik` komutu (`demo`, `akis`, `ayarlar`); tercihler TOML ayar dosyasında ve `TERMIK_*` ortam
+değişkenlerinde, öncelik kod > ortam > dosya > varsayılan. Elle çizilmiş vitrin prototipi emekliye
+ayrıldı; git geçmişinde duruyor.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
-title=…)` ya da çalışırken `app.set_theme(…)` ile verilir.
+title=…)` ya da çalışırken `app.set_theme(…)` ile verilir. Verilmeyenler kullanıcının
+tercihlerinden gelir (aşağıda **Ayarlar**).
 
 | Belirteç | Değerler | Varsayılan |
 |---|---|---|
@@ -219,35 +243,57 @@ title=…)` ya da çalışırken `app.set_theme(…)` ile verilir.
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
 prototipin yuvarlak, kart zeminli hali).
 
-## Çalıştırma
+## Ayarlar
+
+Görünüm ve kip tercihleri koda dokunmadan seçilir. Öncelik sırası: kodda verilen değer > ortam
+değişkeni > ayar dosyası > varsayılan. `termik ayarlar` tercihleri pencerede sorar; seçtiğin tema
+hemen uygulanır, onaylarsan dosyaya yazılır.
+
+Ayar dosyası TOML'dur: Windows'ta `%APPDATA%\termik\ayarlar.toml`, diğerlerinde
+`~/.config/termik/ayarlar.toml` (`XDG_CONFIG_HOME` varsa onun altında). `TERMIK_CONFIG` başka bir
+dosyayı gösterir; `termik ayarlar --yol` yerini yazar.
+
+```toml
+theme = "orman"
+look = "terminal"
+density = "dengeli"
+mode = "auto"              # akış API'si: auto · window · terminal
+font = "C:/Fonts/Iosevka.ttf"
+bar = "segment"            # yukarıdaki bütün biçim belirteçleri
+accent = "#ff8800"         # renkler de ezilebilir
+```
+
+Ortam değişkenleri aynı adların `TERMIK_` önekli büyük harflisidir: `TERMIK_THEME=neon`,
+`TERMIK_DENSITY=ferah`, `TERMIK_BAR=ascii`, `TERMIK_MODE=terminal`, `TERMIK_FONT=…`. Geçersiz bir
+değer programı durdurmaz: bir kez uyarı yazılır, değer yok sayılır. Kodda verilen yanlış bir ad
+(`App(theme="yok")`) ise `ValueError` verir. Akış API'sinde `termik.restyle(theme="neon")`
+görünümü çalışırken değiştirir.
+
+## Geliştirme
 
 ```bash
-pip install pygame-ce
-python prototip/akis_ornek.py
-TERMIK_MODE=terminal python prototip/akis_ornek.py
-python prototip/demo.py
-python prototip/demo.py --theme neon --density ferah
-python prototip/vitrin.py
+pip install -e .
+termik demo C:\Projeler --theme neon --density ferah
 python tests/test_core.py
 python tests/test_widgets.py
 python tests/test_textarea.py
 python tests/test_dialog_scroll.py
 python tests/test_flow.py
+python tests/test_settings.py
 ```
 
-`prototip/akis_ornek.py` akış API'siyle yazılmış bir yedekleme betiği: klasör sorar (Ctrl+O ile
-ağaçtan da seçilir), mod ve dosya türlerini seçtirir, klasörü tarar, onay alıp kopyalamayı
-canlandırır (dosyalara dokunmaz), en büyük dosyaları tabloyla özetler. PowerShell'de terminal
-kipi: `$env:TERMIK_MODE="terminal"; python prototip/akis_ornek.py`.
+`termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
+sorar (Ctrl+O ile ağaçtan da seçilir), mod ve dosya türlerini seçtirir, klasörü tarar, onay alıp
+kopyalamayı canlandırır (dosyalara dokunmaz), en büyük dosyaları tabloyla özetler. PowerShell'de
+terminal kipi: `$env:TERMIK_MODE="terminal"; termik akis`.
 
-Demo: `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
+Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`): `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
 thread'de taranır; kopyalama taklittir), `esc` iptal (onay ister), `f2` tema, `f4` yoğunluk, `tab`
 odak, `ctrl+q` çıkış (yedekleme sürüyorsa sorar). Palette "Hedef klasörü değiştir…" yazı soran bir
 diyalog açar; Notlar paneli çok satırlı bir yazı alanıdır.
-Dosya ağacında bir klasörde Enter ya da çift tık onu kaynak yapar; biten yedekleme geçmiş tablosuna
-eklenir. Sistem paneli demonun kendi CPU kullanımını ve saniyede çizilen kare sayısını gösterir:
-boştayken ikisi de sıfıra yaklaşır. `prototip/vitrin.py` bileşen çekirdeğinden önceki, elle
-çizilmiş görünüm prototipidir.
+Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
+tık onu kaynak yapar, biten yedekleme geçmiş tablosuna eklenir. Sistem paneli demonun kendi CPU
+kullanımını ve saniyede çizilen kare sayısını gösterir: boştayken ikisi de sıfıra yaklaşır.
 
 Testler pencere açmadan (SDL'in sahte sürücüsüyle) `app.run_test()` ve `Pilot` ile sürülür:
 
@@ -259,10 +305,21 @@ async with app.run_test() as pilot:
     pilot.snapshot("ekran.png")
 ```
 
+Testler kullanıcının ayar dosyasından ve `TERMIK_*` değişkenlerinden yalıtılır (`tests/_ortam.py`).
+
+Paketi derleyip PyPI'ye yüklemek (`pip install build twine` gerekir):
+
+```bash
+python -m build
+python -m twine upload dist/*
+```
+
 ## Yapı
 
 | Dosya | İçerik |
 |---|---|
+| `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
+| `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
 | `termik/flow/` | Akış API'si: `Session` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru bileşenleri, gözat diyaloğu, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `App`: asyncio döngüsü, ekranlar, odak, fare ve klavye yönlendirme, zamanlayıcılar, işçiler, bildirimler; `Pilot` |
 | `termik/widget.py` | `Widget`: ağaç, compose, sorgular, mesajlar, `@action`, flex yerleşim; `Row`, `Column`, `Spacer` |
@@ -272,8 +329,9 @@ async with app.run_test() as pilot:
 | `termik/events.py`, `keys.py`, `reactive.py`, `layout.py` | Mesajlar ve olaylar; tuş adları; `reactive`; boyut çözme ve dağıtma |
 | `termik/theme.py`, `markup.py`, `fonts.py`, `text.py`, `draw.py` | Tema ve biçim belirteçleri; markup ayrıştırma (pygame'siz, terminal kipi de kullanır); font yığını; yazı ölçme ve çizme; çizim ilkelleri (`Painter`) |
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
-| `prototip/akis_ornek.py`, `demo.py`, `vitrin.py` | Akış API'siyle yazılmış betik; bileşenlerle yazılmış demo; elle çizilmiş görünüm prototipi |
-| `tests/` | 74 test: çekirdek (18), palet/ağaç/tablo/grafik (11), TextArea (12), diyalog/ScrollView (9), akış API'si (24; dördü ayrı süreçte, gerçek ana thread'le) |
+| `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
+| `docs/ekran/` | README'deki ekran görüntüleri |
+| `tests/` | 83 test: çekirdek (18), palet/ağaç/tablo/grafik (11), TextArea (12), diyalog/ScrollView (9), akış API'si (24; dördü ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (9) |
 
 ## Öğrendiklerimiz
 
@@ -301,13 +359,12 @@ async with app.run_test() as pilot:
 - **Eş genişlikli fontta genişlik çarpmayla:** satır kaydırma her kelimeyi ayrı ölçüyordu. Birincil
   font eş genişlikliyse (açılışta ölçülerek doğrulanıyor) genişlik harf sayısı × karakter genişliği;
   2000 satırı yeni genişlikte kaydırmak 520 ms'den 58 ms'ye indi.
+- **Windows'ta boruya ya da dosyaya giden çıktı cp1254 kodlanıyor:** `✓ ─ ›` gibi simgeler yazılamıyor.
+  Terminal kipi bu durumda ASCII karşılıklarına (`+ - >`) düşüyor; konsolda sorun yok.
 
 ## Sıradaki adımlar
 
-1. **Paketleme ve ayarlar:** `pyproject.toml`, tema/görünüm seçiminin bir ayar dosyasından ya da
-   ortam değişkeninden okunması. Demo artık vitrinin yaptığını bileşenlerle yaptığı için vitrin
-   emekliye ayrılabilir.
-2. **macOS kipi:** pencere ana thread'de, script ayrı thread'de.
-3. **Akış API'sinde sonrası:** script'in kendi `print()`'lerini pencereye yönlendirme seçeneği;
+1. **macOS kipi:** pencere ana thread'de, script ayrı thread'de.
+2. **Akış API'sinde sonrası:** script'in kendi `print()`'lerini pencereye yönlendirme seçeneği;
    birkaç alanı tek ekranda soran bir `form()`; seçenek listesini (`OptionList`) bileşen katmanına
    açmak.

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "termik"
+dynamic = ["version"]
+description = "CLI estetiğinde, GUI rahatlığında Python arayüz kütüphanesi: script'ler için akış API'si, uygulamalar için bileşenler."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "termik/fonts/OFL.txt"]
+requires-python = ">=3.11"
+authors = [{ email = "efebagci242@gmail.com" }]
+dependencies = ["pygame-ce>=2.5"]
+keywords = ["gui", "tui", "cli", "terminal", "pygame", "arayüz", "türkçe"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Developers",
+    "Natural Language :: Turkish",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: User Interfaces",
+    "Typing :: Typed",
+]
+
+[project.scripts]
+termik = "termik.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "termik.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["termik*"]
+
+[tool.setuptools.package-data]
+termik = ["fonts/*.ttf", "fonts/OFL.txt", "py.typed"]

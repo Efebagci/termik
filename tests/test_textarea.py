@@ -11,6 +11,8 @@ import time
 import traceback
 from pathlib import Path
 
+import _ortam  # noqa: E402,F401  (kullanıcının tercihlerinden yalıt)
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 

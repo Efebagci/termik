@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import functools
 import os
 import signal
 import sys
@@ -1249,6 +1250,9 @@ class WindowBackend:
         entry = LiveEntry(progress)
         self._post(self.app.add_live, entry)
         return _LiveView(self, entry)
+
+    def restyle(self, theme: str | None = None, **changes) -> None:
+        self._post(functools.partial(self.app.set_theme, theme, **changes))
 
     def close(self) -> None:
         """Pencereyi kapat ve thread'inin bitmesini bekle. pygame süreç başına tek pencere tuttuğu

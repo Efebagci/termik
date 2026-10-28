@@ -26,7 +26,7 @@ from typing import Any, Callable, Iterable
 
 import pygame
 
-from . import keys
+from . import keys, settings
 from .draw import Painter
 from .events import (Blur, Click, Focus, Key, MouseDown, MouseEnter, MouseLeave, MouseMove,
                      MouseScroll, MouseUp, TextInput)
@@ -74,12 +74,18 @@ class App(Widget):
     PADDING = (0.5, 2)   # ana ekranın kenar boşluğu: satır, karakter
     GAP = 0.5            # ana ekrandaki bileşenler arası boşluk, satır
 
-    def __init__(self, *, theme: str = "okyanus", look: str = "terminal", density: str = "rahat",
+    def __init__(self, *, theme: str | None = None, look: str | None = None, density: str | None = None,
                  title: str | None = None, **tokens) -> None:
+        """theme, look, density ve biçim belirteçleri verilmezse kullanıcının tercihleri (ayar dosyası,
+        TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa okyanus · terminal · rahat."""
         super().__init__()
+        settings.check_names(theme=theme, look=look, density=density)
+        prefs = settings.preferences()
         self.title = title or self.TITLE
-        self._theme_name, self._look, self._density = theme, look, density
-        self._tokens = dict(tokens)
+        self._theme_name = theme or prefs.get("theme", "okyanus")
+        self._look = look or prefs.get("look", "terminal")
+        self._density = density or prefs.get("density", "rahat")
+        self._tokens = {**prefs["tokens"], **tokens}
         self.painter: Painter | None = None
         self.focused: Widget | None = None
         self._app = self
@@ -115,10 +121,14 @@ class App(Widget):
     def density(self) -> str:
         return self._density
 
-    def set_theme(self, name: str | None = None, *, density: str | None = None, **tokens) -> None:
-        """Renk temasını, yoğunluğu ya da tek tek biçim belirteçlerini değiştir."""
+    def set_theme(self, name: str | None = None, *, look: str | None = None, density: str | None = None,
+                  **tokens) -> None:
+        """Renk temasını, görünümü, yoğunluğu ya da tek tek biçim belirteçlerini değiştir."""
+        settings.check_names(theme=name, look=look, density=density)
         if name is not None:
             self._theme_name = name
+        if look is not None:
+            self._look = look
         if density is not None:
             self._density = density
         self._tokens.update(tokens)

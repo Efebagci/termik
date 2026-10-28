@@ -16,6 +16,8 @@ import sys
 import pygame
 import pygame.freetype
 
+from . import settings
+
 # Pakete gömülü varsayılan font: JetBrains Mono'nun ligatürsüz (NL) kesimi, OFL lisanslı.
 # Ligatürsüz, çünkü pygame-ce ligatürleri kapatamıyor; "=>" ve "!=" iki karakter kalmalı.
 BUNDLED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "JetBrainsMonoNL-Regular.ttf")
@@ -97,17 +99,17 @@ def _index_fonts() -> dict[str, str]:
 def default_font_paths() -> list[str | None]:
     """[birincil monospace, sembol yedeği, emoji yedeği] — bulunabilenler.
 
-    Birincil font sırasıyla: TERMIK_FONT ortam değişkeni, pakete gömülü font, sistemdeki
-    adaylar. Hiçbiri yoksa pygame'in kendi fontu (None) kullanılır.
+    Birincil font sırasıyla: kullanıcının tercihi (TERMIK_FONT ya da ayar dosyasında font),
+    pakete gömülü font, sistemdeki adaylar. Hiçbiri yoksa pygame'in kendi fontu (None).
     """
     index = _index_fonts()
 
     def first(names: tuple[str, ...]) -> str | None:
         return next((index[n.lower()] for n in names if n.lower() in index), None)
 
-    env = os.environ.get("TERMIK_FONT")
-    if env and os.path.isfile(env):
-        primary = env
+    chosen = settings.preferences().get("font")
+    if chosen:
+        primary = chosen
     elif os.path.isfile(BUNDLED):
         primary = BUNDLED
     else:
@@ -123,11 +125,12 @@ def default_font_paths() -> list[str | None]:
 def bold_sibling(path: str | None) -> str | None:
     """Fontun ayrı kalın kesim dosyası: JetBrainsMono-Regular → -Bold, consola → consolab.
 
-    TERMIK_FONT_BOLD ortam değişkeni bunu zorlar. Bulunamazsa None (kalınlık sentetik olur).
+    Kullanıcının tercihi (TERMIK_FONT_BOLD ya da ayar dosyasında font_bold) bunu zorlar.
+    Bulunamazsa None (kalınlık sentetik olur).
     """
-    env = os.environ.get("TERMIK_FONT_BOLD")
-    if env and os.path.isfile(env):
-        return env
+    chosen = settings.preferences().get("font_bold")
+    if chosen:
+        return chosen
     if not path:
         return None
     folder, filename = os.path.split(path)

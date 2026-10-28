@@ -28,19 +28,17 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, TypeVar
 
+from .. import settings
 from ..markup import escape
-from ..theme import DENSITIES, LOOKS, THEMES
+from ..theme import THEMES, Theme, with_look
 from .common import ICONS, Progress, format_table
 
 __all__ = [
     "Progress", "Session", "ask", "ask_path", "choose", "choose_many", "confirm", "error", "info", "ok",
-    "print", "progress", "rule", "setup", "spinner", "table", "track", "warn",
+    "print", "progress", "restyle", "rule", "setup", "spinner", "table", "track", "warn",
 ]
 
 T = TypeVar("T")
-
-_MODES = {"auto": "auto", "window": "window", "pencere": "window", "gui": "window",
-          "terminal": "terminal", "tty": "terminal"}
 
 
 class Session:
@@ -57,9 +55,9 @@ class Session:
     def __init__(self, *, title: str | None = None, theme: str | None = None, look: str | None = None,
                  density: str | None = None, size: tuple[int, int] | None = None, mode: str | None = None,
                  keep_open: bool = True, headless: bool = False, **tokens) -> None:
-        for value, known, what in ((theme, THEMES, "tema"), (look, LOOKS, "görünüm"), (density, DENSITIES, "yoğunluk")):
-            if value is not None and value not in known:
-                raise ValueError(f"bilinmeyen {what}: {value!r} ({', '.join(known)})")
+        settings.check_names(theme=theme, look=look, density=density)
+        if mode is not None and str(mode).strip().lower() not in settings.MODES:
+            raise ValueError(f"bilinmeyen kip: {mode!r} (auto, window ya da terminal)")
         self.title = title or _script_name()
         self.theme, self.look, self.density = theme, look, density
         self.size = size
@@ -92,6 +90,21 @@ class Session:
         """Pencereyi şimdi kapat (terminal kipinde bir şey yapmaz)."""
         if self._backend is not None:
             self._backend.close()
+
+    def _style(self) -> Theme:
+        """Oturumun geçerli teması: koddaki değerler, yoksa kullanıcının tercihleri, yoksa varsayılanlar."""
+        prefs = settings.preferences()
+        return with_look(THEMES[self.theme or prefs.get("theme", "okyanus")], self.look or prefs.get("look", "terminal"),
+                         density=self.density or prefs.get("density"), **{**prefs["tokens"], **self.tokens})
+
+    def restyle(self, theme: str | None = None, *, look: str | None = None, density: str | None = None,
+                **tokens) -> None:
+        """Görünümü çalışırken değiştir: termik.restyle(theme="neon", bar="segment")."""
+        settings.check_names(theme=theme, look=look, density=density)
+        self.theme, self.look, self.density = theme or self.theme, look or self.look, density or self.density
+        self.tokens.update(tokens)
+        if self._backend is not None:
+            self._backend.restyle(theme, look=look, density=density, **tokens)
 
     # ── çıktı ─────────────────────────────────────────────
 
@@ -365,10 +378,10 @@ def _note(message: str) -> None:
 
 def _open(session: Session):
     """Arka ucu seç ve aç: pencere, olmazsa terminal."""
-    requested = (session.mode or os.environ.get("TERMIK_MODE") or "auto").strip().lower()
-    mode = _MODES.get(requested)
-    if mode is None:
-        raise ValueError(f"bilinmeyen kip: {requested!r} (auto, window ya da terminal)")
+    if session.mode:
+        mode = settings.MODES[session.mode.strip().lower()]
+    else:  # TERMIK_MODE ya da ayar dosyasındaki mode
+        mode = settings.preferences().get("mode", "auto")
     if mode != "terminal" and (mode == "window" or session.headless or _no_window() is None):
         try:
             from .window import WindowBackend
@@ -415,6 +428,11 @@ def setup(*, title: str | None = None, theme: str | None = None, look: str | Non
             raise RuntimeError("termik.setup() pencere açılmadan, ilk çıktıdan önce çağrılmalı")
         _default = Session(title=title, theme=theme, look=look, density=density, size=size, mode=mode,
                            keep_open=keep_open, **tokens)
+
+
+def restyle(theme: str | None = None, *, look: str | None = None, density: str | None = None, **tokens) -> None:
+    """Görünümü çalışırken değiştir: termik.restyle(theme="neon", density="ferah")."""
+    _session().restyle(theme, look=look, density=density, **tokens)
 
 
 def print(*objects: Any, sep: str = " ", end: str = "\n", markup: bool = True) -> None:  # noqa: A001

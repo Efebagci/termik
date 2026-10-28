@@ -19,7 +19,7 @@ import time
 
 from ..fuzzy import fold, match
 from ..markup import Span, escape, parse_markup, plain_text
-from ..theme import THEMES, Color, Theme
+from ..theme import Color, Theme
 from .common import LABEL_CAP, SPINNER, STATE_ICONS, amount, counts, display_width, duration
 
 
@@ -128,6 +128,11 @@ def _frame() -> str:
     return SPINNER[int(time.monotonic() * 10) % len(SPINNER)]
 
 
+# kod sayfası simgeleri yazamıyorsa (Windows'ta boruya ya da dosyaya giden çıktı) ASCII karşılıkları
+_ASCII = str.maketrans({"✓": "+", "✗": "x", "⚠": "!", "•": "*", "■": "#", "─": "-", "›": ">", "❯": ">",
+                        "█": "#", "░": ".", "…": "...", "·": "-", "⏎": "enter"})
+
+
 # ── arka uç ───────────────────────────────────────────────
 
 class TerminalBackend:
@@ -138,7 +143,7 @@ class TerminalBackend:
 
     def __init__(self, session) -> None:
         self.session = session
-        self.theme = THEMES.get(session.theme or "", THEMES["okyanus"])
+        self.theme = session._style()  # terminalde yalnızca renkleri kullanılır
         self.color = _color_mode(sys.stdout)
         self.fancy = self.color is not None and _isatty(sys.stdout)  # imleç hareketi serbest
         self.label_chars = 0
@@ -165,9 +170,9 @@ class TerminalBackend:
         try:
             try:
                 out.write(text)
-            except UnicodeEncodeError:  # konsol kod sayfası simgeleri yazamıyor
+            except UnicodeEncodeError:  # kod sayfası (ör. boruya giden cp1254) simgeleri yazamıyor
                 encoding = getattr(out, "encoding", None) or "ascii"
-                out.write(text.encode(encoding, "replace").decode(encoding))
+                out.write(text.translate(_ASCII).encode(encoding, "replace").decode(encoding))
             out.flush()
         except (OSError, ValueError):
             pass
@@ -273,6 +278,9 @@ class TerminalBackend:
             self._open_line = False
             line = f"[{color}]{icon}[/] {self._labeled(prog.label, prog.summary())}\n"
             self._put(self._clear() + lead + self._ansi(line) + self._live_area())
+
+    def restyle(self, theme: str | None = None, **_) -> None:
+        self.theme = self.session._style()
 
     def close(self) -> None:
         """Terminalde kapatılacak pencere yok."""

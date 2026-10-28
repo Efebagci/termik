@@ -14,9 +14,10 @@ import traceback
 import types
 from pathlib import Path
 
+import _ortam  # noqa: E402,F401  (kullanıcının tercihlerinden yalıt)
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "prototip"))
 
 import termik as ui  # noqa: E402
 from termik import keys  # noqa: E402
@@ -377,10 +378,10 @@ def test_every_theme_and_density_renders():
 
 
 def test_demo_app():
-    import demo
+    from termik.demo import uygulama as demo
 
     async def main():
-        app = demo.BackupApp()
+        app = demo.BackupApp(ROOT)
         async with app.run_test(size=(1200, 760)) as pilot:
             await pilot.press("f5")
             await pilot.wait_until(lambda: app.query_one("#bar").progress >= 1 and not app.running, timeout=15)

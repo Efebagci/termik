@@ -11,9 +11,10 @@ import time
 import traceback
 from pathlib import Path
 
+import _ortam  # noqa: E402,F401  (kullanıcının tercihlerinden yalıt)
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "prototip"))
 
 import termik as ui  # noqa: E402
 
@@ -198,10 +199,10 @@ def test_scrollview_short_content_lets_fr_grow():
 
 
 def test_demo_help_and_prompt():
-    import demo
+    from termik.demo import uygulama as demo
 
     async def main():
-        app = demo.BackupApp()
+        app = demo.BackupApp(ROOT)
         async with app.run_test(size=(1280, 800)) as pilot:
             await pilot.press("f1")
             dialog = app.screen

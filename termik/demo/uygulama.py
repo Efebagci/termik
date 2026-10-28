@@ -1,15 +1,15 @@
-"""termik demo: bileşen çekirdeğiyle yazılmış küçük bir yedekleme aracı.
+"""termik demo: bileşen katmanıyla yazılmış küçük bir yedekleme aracı.
 
-    python prototip/demo.py
-    python prototip/demo.py --theme neon --density ferah
+    termik demo                      # ya da: python -m termik demo
+    termik demo C:\\Projeler --theme neon --density ferah
 
 Tuşlar: ctrl+p komut paleti · f1 yardım · tab/shift+tab odak · f5 başlat · esc iptal (onay ister)
 f2 tema · f4 yoğunluk · ctrl+q çık. Alttaki kısayol satırındaki öğelere tıklamak da çalışır.
 
-Dosya ağacı projenin gerçek klasörlerini gösterir; bir klasörde Enter ya da çift tık onu kaynak
-yapar. Kaynak gerçekten taranır (ayrı thread'de, pencere donmadan), kopyalama ise taklittir.
-Sistem paneli bu sürecin kendi CPU kullanımını ve saniyede çizilen kare sayısını gösterir:
-boştayken ikisi de sıfıra yakındır, çünkü ekran yalnızca bir şey değişince çizilir.
+Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
+tık onu kaynak yapar. Kaynak gerçekten taranır (ayrı thread'de, pencere donmadan), kopyalama ise
+taklittir. Sistem paneli bu sürecin kendi CPU kullanımını ve saniyede çizilen kare sayısını
+gösterir: boştayken ikisi de sıfıra yakındır, çünkü ekran yalnızca bir şey değişince çizilir.
 """
 
 from __future__ import annotations
@@ -17,15 +17,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import termik as ui
 
-import termik as ui  # noqa: E402
-
-ROOT = Path(__file__).resolve().parent.parent
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 IDLE = "[faint]●[/] [dim]başlamaya hazır[/]"
 HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
@@ -92,8 +88,9 @@ class BackupApp(ui.App):
     SIZE = (1280, 800)
     running = ui.reactive(False)
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, folder: str | os.PathLike | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.folder = Path(folder or os.getcwd()).resolve()
         self._spin = None
         self._frame = 0
         self._done = (0, 0)
@@ -104,10 +101,10 @@ class BackupApp(ui.App):
     def compose(self):
         yield ui.Header("termik", "bileşen çekirdeği · demo")
         with ui.Row(gap=1):
-            yield ui.Panel(ui.DirectoryTree(ROOT, id="tree"), title="Dosyalar", width=32, id="files")
+            yield ui.Panel(ui.DirectoryTree(self.folder, id="tree"), title="Dosyalar", width=32, id="files")
             with ui.Column(gap=0.5):
                 with ui.Panel(title="Yedekleme", info="[faint]tam yedek[/]", gap=0.5, id="form"):
-                    yield ui.Input(str(ROOT), label="Kaynak klasör", id="src")
+                    yield ui.Input(str(self.folder), label="Kaynak klasör", id="src")
                     yield ui.Input("D:\\Yedek", label="Hedef klasör", id="dst")
                     with ui.Column(padding=(0, 0, 0, 1.5)):
                         yield ui.RadioSet("Tam", "Artımlı", label="Mod", id="mode")
@@ -132,7 +129,7 @@ class BackupApp(ui.App):
                 yield ui.Panel(ui.TextArea(placeholder="notlar…", line_numbers=True, rows=6, id="notes"),
                                title="Notlar", id="notes-panel")
         yield ui.KeyBar()
-        yield ui.StatusBar(mode="HAZIR", left="prototip/demo.py", id="statusbar")
+        yield ui.StatusBar(mode="HAZIR", left="termik demo", id="statusbar")
 
     @property
     def log(self) -> ui.Log:
@@ -289,12 +286,14 @@ class BackupApp(ui.App):
         self.query_one("#notes-panel", ui.Panel).info = f"[faint]{lines} satır · {len(event.text)} karakter[/]"
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description="termik bileşen çekirdeği demosu")
-    ap.add_argument("--theme", default="okyanus", choices=list(ui.THEMES))
-    ap.add_argument("--density", default="rahat", choices=list(ui.DENSITIES))
-    args = ap.parse_args()
-    BackupApp(theme=args.theme, density=args.density).run()
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(prog="termik demo", description="termik bileşen katmanı demosu")
+    ap.add_argument("klasor", nargs="?", help="ağaçta gösterilecek klasör (varsayılan: çalışılan klasör)")
+    # verilmezse ayar dosyasındaki ya da ortam değişkenindeki tercih geçerli olur
+    ap.add_argument("--theme", choices=list(ui.THEMES))
+    ap.add_argument("--density", choices=list(ui.DENSITIES))
+    args = ap.parse_args(argv)
+    BackupApp(args.klasor, theme=args.theme, density=args.density).run()
 
 
 if __name__ == "__main__":

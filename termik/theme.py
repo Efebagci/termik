@@ -151,9 +151,24 @@ DENSITIES: dict[str, dict] = {
 }
 
 
+# Biçim belirteçlerinin alabileceği değerler; ayar dosyası ve ortam değişkenleri bunlarla denetlenir
+CHOICES: dict[str, tuple[str, ...]] = {
+    "title": ("inverse", "inline", "tab"),
+    "focus": ("color", "double"),
+    "button": ("bracket", "angle", "solid", "pill"),
+    "bar": ("block", "segment", "line", "ascii"),
+    "selection": ("inverse", "pointer"),
+    "shadow": ("hard", "soft", "none"),
+    "radio": ("paren", "dot"),
+}
+
+
 def with_look(theme: Theme, look: str = "terminal", density: str | None = None, **overrides) -> Theme:
     """Renk temasına biçim ve yoğunluk kümesi uygula; overrides tek tek belirteçleri ezer.
 
         with_look(THEMES["neon"], "terminal", density="ferah", title="inline", bar="segment")
+
+    Renkler "#ff8800" biçiminde de verilebilir: with_look(tema, accent="#ff8800").
     """
+    overrides = {k: hex_color(v) if k in _COLOR_FIELDS and isinstance(v, str) else v for k, v in overrides.items()}
     return replace(theme, **{**LOOKS[look], **(DENSITIES[density] if density else {}), **overrides})
