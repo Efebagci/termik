@@ -28,8 +28,8 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 __version__ = "0.5.0"
 
 from . import settings  # noqa: E402
-from .flow import (ask, ask_path, choose, choose_many, confirm, error, info, ok, print,  # noqa: E402,A004
-                   progress, restyle, rule, setup, spinner, table, track, warn)
+from .flow import (Field, Password, ask, ask_path, choose, choose_many, confirm, error, form,  # noqa: E402,A004
+                   info, ok, print, progress, restyle, rule, setup, spinner, table, track, warn)
 from .markup import escape, plain_text  # noqa: E402
 from .theme import DENSITIES, LOOKS, THEMES, Theme, with_look  # noqa: E402
 
@@ -47,7 +47,7 @@ else:
     from .reactive import reactive  # noqa: E402
     from .widget import Column, Row, Screen, Spacer, Widget, action  # noqa: E402
     from .widgets import (Button, Checkbox, DirectoryTree, Header, Input, KeyBar, Label, Log,  # noqa: E402
-                          Panel, ProgressBar, RadioSet, ScrollView, Sparkline, Static, StatusBar, Table,
+                          OptionList, Panel, ProgressBar, RadioSet, ScrollView, Sparkline, Static, StatusBar, Table,
                           TextArea, Tree, TreeNode)
 
 

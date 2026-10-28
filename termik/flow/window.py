@@ -28,12 +28,11 @@ import pygame
 from .. import clipboard
 from ..app import App
 from ..dialog import Dialog
-from ..events import Click, Key, MouseDown, MouseMove, MouseScroll, TextInput
-from ..fuzzy import match, score
-from ..markup import Span, Style, escape, plain_text
-from ..palette import _highlight
+from ..events import Click, Key, MouseDown, MouseMove
+from ..markup import Span, escape, plain_text
 from ..widget import Widget, action
-from ..widgets import DirectoryTree, Input, ScrollView, Static
+from ..widgets import Button, Checkbox, DirectoryTree, Input, OptionList, RadioSet, ScrollView, Static
+from . import capture
 from .common import LABEL_CAP, SPINNER, STATE_ICONS, Progress, amount, counts, display_width, duration
 
 MAX_LINES = 2000  # dökümde tutulan en çok çıktı satırı; eskiler atılır
@@ -109,8 +108,13 @@ class OutputBlock(Widget):
         if not tail_open:
             parts.pop()
         for i, part in enumerate(parts):
+            reset = "\r" in part  # satır başına dönüş: ardından gelen yazı satırın yerine geçer (tqdm gibi)
+            part = part.rsplit("\r", 1)[-1]
             if i == 0 and self.open and self.lines:
-                self.lines[-1].append(part)
+                if reset:
+                    self.lines[-1] = [part]
+                else:
+                    self.lines[-1].append(part)
                 if len(self._counts) == len(self.lines):  # son satır yeniden kaydırılsın
                     del self._rows[len(self._rows) - self._counts.pop():]
             else:
@@ -261,8 +265,8 @@ class PromptEntry(Widget):
 
     default_height = "auto"
 
-    def __init__(self, label: str) -> None:
-        super().__init__()
+    def __init__(self, label: str, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.label = label
         self.summary: str | None = None
         self.error = ""
@@ -517,180 +521,6 @@ class PathPrompt(AskPrompt):
             self._set(chosen)
 
 
-class OptionList(Widget):
-    """Süzülebilir seçenek listesi: yazdıkça bulanık süzer, ↑/↓ gezer, ⏎ seçer. Çoklu kipte
-    space işaretler, ctrl+a görünenlerin hepsini işaretler ya da kaldırır."""
-
-    default_width = "auto"
-    default_height = "auto"
-    can_focus = True
-    accepts_text = True
-    cursor = "hand"
-    ROWS = 8
-
-    def __init__(self, options: list[str], *, index: int = 0, multi: bool = False, selected=()) -> None:
-        super().__init__()
-        self.options = options
-        self.multi = multi
-        self.selected: set[int] = set(selected)
-        self.query = ""
-        self.matches: list[tuple[int, list[int]]] = [(i, []) for i in range(len(options))]
-        self.cursor_line = max(0, min(index, len(options) - 1))
-        self._top = 0
-        self._hover: int | None = None
-        self._longest: tuple[int, int] | None = None  # (karakter genişliği, en uzun seçenek pikseli)
-
-    def filter(self, query: str) -> None:
-        current = self.matches[self.cursor_line][0] if self.matches else None
-        self.query = query
-        if not query:
-            self.matches = [(i, []) for i in range(len(self.options))]
-            # süzgeç silinince imleç son bakılan seçenekte kalsın
-            self.cursor_line = next((n for n, (i, _) in enumerate(self.matches) if i == current), 0)
-        else:
-            found = []
-            for i, label in enumerate(self.options):
-                positions = match(query, label)
-                if positions is not None:
-                    found.append((score(positions), i, positions))
-            found.sort(key=lambda f: (f[0], f[1]))
-            self.matches = [(i, positions) for _, i, positions in found]
-            self.cursor_line = 0
-        self.refresh(layout=True)
-
-    def move(self, step: int, wrap: bool = True) -> None:
-        if not self.matches:
-            return
-        n = self.cursor_line + step
-        self.cursor_line = n % len(self.matches) if wrap else max(0, min(len(self.matches) - 1, n))
-        self.refresh()
-
-    def toggle(self) -> None:
-        if self.matches:
-            self.selected ^= {self.matches[self.cursor_line][0]}
-            self.refresh()
-
-    def toggle_all(self) -> None:
-        shown = {i for i, _ in self.matches}
-        self.selected = self.selected - shown if shown <= self.selected else self.selected | shown
-        self.refresh()
-
-    def submit(self) -> None:
-        if self.multi:
-            self.parent.answer(sorted(self.selected))
-        elif self.matches:
-            self.parent.answer(self.matches[self.cursor_line][0])
-
-    # ── yerleşim ve çizim ────────────────────────────────
-
-    def _rows(self) -> int:
-        return max(1, min(self.ROWS, len(self.matches)))
-
-    def measure(self, p, width: int) -> tuple[int, int]:
-        if self._longest is None or self._longest[0] != p.ch:
-            self._longest = (p.ch, max((p.text.width([(o, Style())]) for o in self.options), default=0))
-        lead = p.ch * (6 if self.multi else 2) + p.ch // 2
-        return min(width, max(p.ch * 30, self._longest[1] + lead + p.ch * 3)), self._rows() * p.row
-
-    def render(self, p) -> None:
-        th = p.theme
-        c = self.content
-        if not self.matches:
-            p.write(c.x + p.ch // 2, c.y, "eşleşen seçenek yok", color=th.faint)
-            return
-        rows = self._rows()
-        if self.cursor_line < self._top:
-            self._top = self.cursor_line
-        elif self.cursor_line >= self._top + rows:
-            self._top = self.cursor_line - rows + 1
-        self._top = max(0, min(self._top, len(self.matches) - rows))
-        bar = p.ch if len(self.matches) > rows else 0
-        focused = self.has_focus
-        for row in range(rows):
-            n = self._top + row
-            if n >= len(self.matches):
-                break
-            i, positions = self.matches[n]
-            y = c.y + row * p.row
-            rect = pygame.Rect(c.x, y, c.w - bar, p.row)
-            current = n == self.cursor_line
-            fg = None
-            if current:
-                fg = p.selection(rect, focused=focused)
-                if fg is None:  # pointer görünümü: ters renk yerine ❯
-                    p.write(c.x + p.ch // 2, y, "❯", Style(bold=True), th.accent if focused else th.dim)
-            elif n == self._hover:
-                p.hover(rect)
-            x = c.x + p.ch * 2 + p.ch // 2
-            on = i in self.selected
-            if self.multi:
-                p.write(x, y, ("\\[✓]" if on else "\\[ ]") if fg else p.check(on), color=fg)
-                x += p.ch * 4
-            label = _highlight(self.options[i], positions, fg is not None)
-            color = fg or (th.text if current or on else th.dim)
-            p.write(x, y, p.text.elide(label, rect.right - x - p.ch // 2), color=color)
-        p.scrollbar(c.right - 2, c.y, rows * p.row, len(self.matches), rows, self._top, active=focused)
-
-    # ── klavye ve fare ───────────────────────────────────
-
-    def on_key(self, event: Key) -> None:
-        key = event.key
-        if key in ("up", "down"):
-            self.move(-1 if key == "up" else 1)
-        elif key in ("pageup", "pagedown"):
-            self.move((-1 if key == "pageup" else 1) * self.ROWS, wrap=False)
-        elif key in ("home", "end"):
-            self.move(-len(self.matches) if key == "home" else len(self.matches), wrap=False)
-        elif key == "enter":
-            self.submit()
-        elif key == "space" and self.multi:
-            self.toggle()
-        elif key == "ctrl+a" and self.multi:
-            self.toggle_all()
-        elif key == "backspace" and self.query:
-            self.filter(self.query[:-1])
-        elif key in ("ctrl+backspace", "escape") and self.query:
-            self.filter("")
-        else:
-            return
-        event.stop()
-
-    def on_text_input(self, event: TextInput) -> None:
-        text = event.text.strip()  # boşluk süzgece girmez (çoklu kipte işaretler)
-        if text:
-            self.filter(self.query + text)
-
-    def _line_at(self, y: int) -> int | None:
-        row = (y - self.content.y) // self.app.painter.row
-        n = self._top + row
-        return n if 0 <= row < self._rows() and n < len(self.matches) else None
-
-    def on_mouse_move(self, event: MouseMove) -> None:
-        n = self._line_at(event.y)
-        if n != self._hover:
-            self._hover = n
-            self.refresh()
-
-    def on_mouse_leave(self) -> None:
-        self._hover = None
-        self.refresh()
-
-    def on_click(self, event: Click) -> None:
-        n = self._line_at(event.y)
-        if n is None:
-            return
-        event.stop()
-        self.cursor_line = n
-        if self.multi:
-            self.toggle()
-        else:
-            self.submit()
-
-    def on_mouse_scroll(self, event: MouseScroll) -> None:
-        event.stop()
-        self.move(-event.dy, wrap=False)
-
-
 class ChoosePrompt(PromptEntry):
     """Seçim sorusu (tekli ya da çoklu)."""
 
@@ -706,12 +536,20 @@ class ChoosePrompt(PromptEntry):
     def compose(self):
         yield self.list
 
+    def on_option_list_selected(self, event: OptionList.Selected) -> None:
+        event.stop()
+        self.answer(event.index)
+
+    def on_option_list_submitted(self, event: OptionList.Submitted) -> None:
+        event.stop()
+        self.answer(event.indices)
+
     def badge(self) -> str:
         lst = self.list
         parts = []
         if lst.query:
             parts.append(f"[faint]süz:[/] [accent]{escape(lst.query)}[/]")
-        if lst.query or len(lst.options) > lst.ROWS:
+        if lst.query or len(lst.options) > lst.rows:
             parts.append(f"[faint]{len(lst.matches)}/{len(lst.options)}[/]")
         if lst.multi:
             parts.append(f"[faint]{len(lst.selected)} seçili[/]")
@@ -808,6 +646,157 @@ class ConfirmPrompt(PromptEntry):
     def hints(self) -> str:
         letters = "/".join(k for k in self.choice.hotkeys if k not in "yn") or "y/n"
         return _keys(("←→", "seç"), ("⏎", "onayla"), (letters, "cevapla"))
+
+
+class _FormCheck(Checkbox):
+    """Formdaki onay kutusu: space değiştirir; ⏎ formda sonraki alana geçer."""
+
+    @action("Değiştir", key="space", show=False, palette=False)
+    def press(self) -> None:
+        self.toggle()
+
+
+def _field_widget(spec: dict) -> Widget:
+    """Alan tanımından bileşen: kısa seçim radyo, uzun seçim süzülebilir liste, onay kutusu, yazı alanı."""
+    kind, value = spec["kind"], spec["value"]
+    if kind == "check":
+        return _FormCheck("", bool(value))
+    if kind == "choice":
+        options = spec["options"]
+        if len(options) <= 4 and sum(len(o) for o in options) <= 40:
+            return RadioSet(*(escape(o) for o in options), index=value)
+        return OptionList(options, index=value, rows=5)
+    return Input(value, password=spec["password"], placeholder=spec["placeholder"], width=48)
+
+
+class _FormRow(Widget):
+    """Form satırı: solda etiket sütunu, sağda alan. Hatalı alanın etiketi kırmızıdır."""
+
+    default_height = "auto"
+
+    def __init__(self, label: str, field: Widget, name: str | None = None) -> None:
+        super().__init__()
+        self.label, self.field, self.name = label, field, name
+        self.error = ""
+
+    def compose(self):
+        yield self.field
+
+    @property
+    def raw(self) -> Any:
+        f = self.field
+        if isinstance(f, Checkbox):
+            return f.value
+        if isinstance(f, (RadioSet, OptionList)):
+            return f.index if f.index is not None else 0
+        return f.value
+
+    def chrome(self, p) -> tuple[int, int, int, int]:
+        return 0, 0, 0, self.parent.label_width(p)
+
+    def render(self, p) -> None:
+        th = p.theme
+        if self.label:
+            color = th.red if self.error else th.text if self.focus_within else th.dim
+            p.write(self.region.x, self.region.y, p.text.elide(self.label, self.content.x - self.region.x - p.ch),
+                    color=color)
+
+
+class FormPrompt(PromptEntry):
+    """Birkaç alanı tek seferde soran form. Tab alanlar arasında gezer, ⏎ sonraki alana geçer
+    (sonuncusunda gönderir), ctrl+⏎ her yerden gönderir. Cevaplanınca alan başına bir özet satırı."""
+
+    def __init__(self, label: str, *, fields: list[dict]) -> None:
+        super().__init__(label, gap=0.25)
+        self.specs = fields
+        self.rows = [_FormRow(spec["label"], _field_widget(spec), spec["name"]) for spec in fields]
+        self.button = Button("Tamam", variant="primary", on_press=lambda _button: self.submit())
+        self.summaries: list[tuple[str, str]] = []
+
+    @property
+    def body(self) -> Widget:
+        return self.rows[0].field
+
+    def compose(self):
+        yield from self.rows
+        yield _FormRow("", self.button)
+
+    def label_width(self, p) -> int:
+        return max(p.text.width(spec["label"]) for spec in self.specs) + p.ch * 3
+
+    def hints(self) -> str:
+        return _keys(("tab", "sonraki alan"), ("⏎", "ilerle"), ("ctrl+⏎", "gönder"))
+
+    # ── gezinme ve gönderme ──────────────────────────────
+
+    def advance(self) -> None:
+        """⏎: odaktaki alandan sonrakine geç; sonuncudaysa gönder."""
+        current = next((i for i, row in enumerate(self.rows) if row.focus_within), None)
+        if current is None or current == len(self.rows) - 1:
+            self.submit()
+        else:
+            self.rows[current + 1].field.focus()
+
+    @action("Gönder", key="ctrl+enter", show=False)
+    def submit(self) -> None:
+        if self.listening:
+            self.answer({row.name: row.raw for row in self.rows})
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "enter" and not self.answered:  # onay kutusu ve radyoda ⏎ ilerletir
+            event.stop()
+            self.advance()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.advance()
+
+    def on_option_list_selected(self, event: OptionList.Selected) -> None:
+        event.stop()
+        self.advance()
+
+    # ── script ile alışveriş ─────────────────────────────
+
+    def reject(self, errors: dict[str, str], future: Future) -> None:
+        for row in self.rows:
+            row.error = errors.get(row.name, "")
+        first = next((row for row in self.rows if row.error), None)
+        super().reject(f"{plain_text(first.label)}: {first.error}" if first else "geçersiz değer", future)
+        if first is not None:
+            first.field.focus()
+
+    def accept(self, summary: dict[str, str]) -> None:
+        self.summaries = [(spec["label"], summary[spec["name"]]) for spec in self.specs]
+        super().accept("")
+
+    def measure(self, p, width: int) -> tuple[int, int]:
+        if self.answered:
+            return width, p.row * (len(self.summaries) + (1 if self.label else 0))
+        return super().measure(p, width)
+
+    def render(self, p) -> None:
+        if not self.answered:
+            super().render(p)
+            return
+        r = self.region
+        x, y = r.x + p.ch * 2, r.y
+        if self.label:  # başlık, altında girintili alanlar
+            p.write(r.x, y, "[green]✓[/]")
+            p.write(x, y, f"[dim]{self.label}[/]")
+            x, y = x + p.ch * 2, y + p.row
+        column = x + max(p.text.width(label) for label, _ in self.summaries) + p.ch * 2
+        for label, value in self.summaries:
+            if not self.label:
+                p.write(r.x, y, "[green]✓[/]")
+            p.write(x, y, f"[dim]{label}[/]")
+            p.write(column, y, p.text.elide(value, r.right - column))
+            y += p.row
+
+    def plain(self) -> str:
+        if not self.answered:
+            return f"? {plain_text(self.label)}"
+        head = [f"✓ {plain_text(self.label)}"] if self.label else []
+        return "\n".join(head + [f"  {plain_text(label)}  {plain_text(value)}" for label, value in self.summaries])
 
 
 class _BrowserTree(DirectoryTree):
@@ -1124,6 +1113,7 @@ _PROMPTS: dict[str, Callable[..., PromptEntry]] = {
     "confirm": ConfirmPrompt,
     "choose": lambda label, **spec: ChoosePrompt(label, multi=False, **spec),
     "many": lambda label, **spec: ChoosePrompt(label, multi=True, **spec),
+    "form": FormPrompt,
 }
 
 
@@ -1193,6 +1183,7 @@ class WindowBackend:
             self._closed = True
             waiting, closing = self._waiting, self._closing
         _ACTIVE.discard(self)
+        capture.uninstall(self.session)  # print ve input yeniden konsola
         if waiting is not None and not waiting.done():
             waiting.set_exception(_WindowClosed())
         elif (self._up and not closing and self.app.outcome is None
@@ -1293,7 +1284,8 @@ def _install_hooks() -> None:
 
     def excepthook(exc_type, exc, tb) -> None:
         try:
-            previous(exc_type, exc, tb)
+            with capture.muted():  # iz yalnızca konsola; pencere onu kendi biçiminde gösterir
+                previous(exc_type, exc, tb)
         finally:
             for backend in list(_ACTIVE):
                 if backend.owner is threading.main_thread():
@@ -1301,7 +1293,8 @@ def _install_hooks() -> None:
 
     def thread_excepthook(args) -> None:
         try:
-            previous_thread(args)
+            with capture.muted():
+                previous_thread(args)
         finally:
             for backend in list(_ACTIVE):
                 if backend.owner is args.thread:

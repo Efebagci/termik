@@ -257,7 +257,9 @@ class TerminalBackend:
     def table(self, lines: list[str]) -> None:
         self.write("".join(line + "\n" for line in lines))
 
-    def prompt(self, what: str, label: str, **spec) -> _TermPrompt:
+    def prompt(self, what: str, label: str, **spec) -> _TermPrompt | _TermForm:
+        if what == "form":
+            return _TermForm(self, label, spec["fields"])
         return _TermPrompt(self, what, label, spec)
 
     def live(self, progress) -> _TermLive:
@@ -452,5 +454,74 @@ class _TermPrompt:
                 b._put(f"\x1b[{self.lines}F\x1b[J" + line)  # soruyu ve cevabı sil, yerine özet
             elif self.kind in ("choose", "many"):  # numarayla cevaplandı: neyin seçildiği de yazsın
                 b._put(line)
+            b._paused = False
+            b._put(b._live_area())
+
+
+class _TermForm:
+    """Terminalde form: alanlar sırayla sorulur, hatalı olanlar yeniden sorulur; sonunda soru satırları
+    silinir ve yerine tek bir özet bloğu yazılır."""
+
+    _KINDS = {"text": "ask", "check": "confirm", "choice": "choose"}
+
+    def __init__(self, backend: TerminalBackend, label: str, fields: list[dict]) -> None:
+        self.b = backend
+        self.label = label
+        self.fields = fields
+        self.raw = {f["name"]: f["value"] for f in fields}
+        self.pending = [f["name"] for f in fields]  # sorulacak alanlar
+        self.lines = 0
+        self._shown = False
+
+    def _field(self, field: dict) -> _TermPrompt:
+        if field["kind"] == "check":
+            spec = {"default": bool(field["value"]), "yes": "Evet", "no": "Hayır"}
+        elif field["kind"] == "choice":
+            spec = {"options": field["options"], "index": field["value"]}
+        else:
+            spec = {"value": field["value"], "password": field["password"]}
+        return _TermPrompt(self.b, self._KINDS[field["kind"]], field["label"], spec)
+
+    def wait(self) -> dict:
+        b = self.b
+        if not self._shown:
+            self._shown = True
+            if self.label:
+                with b._lock:
+                    line = f"[accent]?[/] [bold]{self.label}[/]"
+                    lead = "\n" if b._open_line else ""
+                    b._open_line = False
+                    b._put(b._clear() + lead + b._ansi(line) + "\n")
+                    self.lines += _rows(plain_text(line), b._cols())
+        for field in self.fields:
+            if field["name"] in self.pending:
+                prompt = self._field(field)
+                try:
+                    self.raw[field["name"]] = prompt.wait()
+                finally:
+                    self.lines += prompt.lines
+        self.pending = []
+        return dict(self.raw)
+
+    def reject(self, errors: dict[str, str]) -> None:
+        b = self.b
+        for field in self.fields:
+            if field["name"] in errors:
+                line = f"  [red]✗[/] {field['label']}[red]: {escape(errors[field['name']])}[/]"
+                b._put(b._ansi(line) + "\n")
+                self.lines += _rows(plain_text(line), b._cols())
+        self.pending = [f["name"] for f in self.fields if f["name"] in errors]
+
+    def accept(self, summary: dict[str, str]) -> None:
+        b = self.b
+        with b._lock:
+            lines = [f"[green]✓[/] [dim]{self.label}[/]"] if self.label else []
+            width = max(display_width(plain_text(f["label"])) for f in self.fields)
+            for field in self.fields:
+                pad = " " * (width - display_width(plain_text(field["label"])) + 2)
+                lead = "    " if self.label else "[green]✓[/] "
+                lines.append(f"{lead}[dim]{field['label']}[/]{pad}{summary[field['name']]}")
+            text = "".join(b._ansi(line) + "\n" for line in lines)
+            b._put(f"\x1b[{self.lines}F\x1b[J" + text if b.fancy and self.lines else text)
             b._paused = False
             b._put(b._live_area())

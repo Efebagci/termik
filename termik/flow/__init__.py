@@ -31,14 +31,42 @@ from typing import Any, Callable, Iterable, Iterator, TypeVar
 from .. import settings
 from ..markup import escape
 from ..theme import THEMES, Theme, with_look
+from . import capture as _capture
 from .common import ICONS, Progress, format_table
 
 __all__ = [
-    "Progress", "Session", "ask", "ask_path", "choose", "choose_many", "confirm", "error", "info", "ok",
-    "print", "progress", "restyle", "rule", "setup", "spinner", "table", "track", "warn",
+    "Field", "Password", "Progress", "Session", "ask", "ask_path", "choose", "choose_many", "confirm", "error",
+    "form", "info", "ok", "print", "progress", "restyle", "rule", "setup", "spinner", "table", "track", "warn",
 ]
 
 T = TypeVar("T")
+
+
+class Field:
+    """form() alanının ayrıntıları; çoğu zaman gerekmez, form(port=8080) yeter.
+
+        termik.form("Bağlantı",
+                    port=termik.Field(8080, label="Port numarası",
+                                      validate=lambda p: 0 < p < 65536 or "1–65535 arası olmalı"),
+                    mod=termik.Field("Artımlı", choices=["Tam", "Artımlı"]))
+
+    default alanın ilk değeri; type cevabı çevirir (verilmezse default'un türü). choices alanı
+    seçim yapar (liste, (etiket, değer) çiftleri ya da sözlük; default bir değer ya da etiket).
+    password gizli yazı alanı yapar; validate ask()'taki gibi denetler; label etiketi değiştirir.
+    """
+
+    def __init__(self, default: Any = None, *, type: Callable[[str], Any] | None = None, label: str | None = None,
+                 choices: Iterable | dict | None = None, password: bool = False,
+                 validate: Callable[[Any], Any] | None = None, placeholder: str = "") -> None:
+        self.default, self.type, self.label = default, type, label
+        self.choices, self.password, self.validate, self.placeholder = choices, password, validate, placeholder
+
+
+class Password(Field):
+    """Gizli yazı alanı: form(parola=termik.Password) ya da form(parola=termik.Password("varsayılan"))."""
+
+    def __init__(self, default: Any = None, **kwargs) -> None:
+        super().__init__(default, password=True, **kwargs)
 
 
 class Session:
@@ -48,13 +76,15 @@ class Session:
     varsayılan oturuma gider; ayrı oturum testlerde ya da gömülü kullanımda gerekir.
 
     mode: "auto" (pencere; açılamazsa terminal), "window" ya da "terminal". Verilmezse
-    TERMIK_MODE ortam değişkenine bakılır. headless=True pencereyi görünmez açar (testler için).
-    keep_open=False pencereyi script bitince kapatır; hata olursa yine de açık kalır.
+    kullanıcının tercihine (TERMIK_MODE, ayar dosyası) bakılır. headless=True pencereyi görünmez
+    açar (testler için). keep_open=False pencereyi script bitince kapatır; hata olursa yine de açık
+    kalır. capture=True (varsayılan) pencere açıkken script'in print(), stderr, logging ve input()
+    çağrılarını da pencereye taşır.
     """
 
     def __init__(self, *, title: str | None = None, theme: str | None = None, look: str | None = None,
                  density: str | None = None, size: tuple[int, int] | None = None, mode: str | None = None,
-                 keep_open: bool = True, headless: bool = False, **tokens) -> None:
+                 keep_open: bool = True, capture: bool = True, headless: bool = False, **tokens) -> None:
         settings.check_names(theme=theme, look=look, density=density)
         if mode is not None and str(mode).strip().lower() not in settings.MODES:
             raise ValueError(f"bilinmeyen kip: {mode!r} (auto, window ya da terminal)")
@@ -63,9 +93,11 @@ class Session:
         self.size = size
         self.mode = mode
         self.keep_open = keep_open
+        self.capture = capture
         self.headless = headless
         self.tokens = tokens
         self._backend = None
+        self._opening = False  # pencere açılırken yakalanan yazılar oturumu yeniden açmaya kalkmasın
         self._lock = threading.Lock()
 
     @property
@@ -82,7 +114,13 @@ class Session:
         if backend is None:
             with self._lock:
                 if self._backend is None:
-                    self._backend = _open(self)
+                    self._opening = True
+                    try:
+                        self._backend = _open(self)
+                    finally:
+                        self._opening = False
+                    if self.capture and self._backend.kind == "window":
+                        _capture.install(self)
                 backend = self._backend
         return backend
 
@@ -246,6 +284,37 @@ class Session:
         prompt.accept(escape(yes if answer else no))
         return answer
 
+    def form(self, title: str = "", /, **fields: Any) -> dict[str, Any]:
+        """Birkaç alanı tek seferde sor; {ad: değer} döndürür.
+
+            ayar = termik.form("Bağlantı", sunucu="localhost", port=8080, mod=["Tam", "Artımlı"],
+                               sıkıştır=True, parola=termik.Password)
+
+        Değerin türü alanı belirler: yazı ya da sayı dolu gelen yazı alanı olur (sayı türü korunur,
+        type= gibi), str/int/float/Path türü boş alan, liste ya da sözlük seçim, bool onay kutusu,
+        termik.Password gizli yazı. Ayrıntı (etiket, doğrulama, seçimde varsayılan) için
+        termik.Field. Etiketler adlardan çıkar: hedef_klasör → "Hedef klasör". Pencerede Tab
+        alanlar arasında gezer, ⏎ sonraki alana geçer (sonuncusunda gönderir), ctrl+⏎ hemen gönderir.
+        Hatalı alanlar işaretlenir ve form yeniden sorulur.
+        """
+        specs = [_form_field(name, value) for name, value in fields.items()]
+        if not specs:
+            raise ValueError("form(): en az bir alan gerekli")
+        prompt = self._io().prompt("form", title, fields=[spec.ui() for spec in specs])
+        while True:
+            raw = prompt.wait()
+            values, errors = {}, {}
+            for spec in specs:
+                try:
+                    values[spec.name] = spec.parse(raw[spec.name])
+                except ValueError as exc:
+                    errors[spec.name] = str(exc) or "geçersiz değer"
+            if not errors:
+                break
+            prompt.reject(errors)
+        prompt.accept({spec.name: spec.summary(raw[spec.name], values[spec.name]) for spec in specs})
+        return values
+
     # ── ilerleme ─────────────────────────────────────────
 
     def track(self, iterable: Iterable[T], label: str = "", *, total: float | None = None,
@@ -351,6 +420,80 @@ def _check(value: Any, validate: Callable[[Any], Any] | None) -> None:
         raise ValueError(verdict)
 
 
+def _label_of(name: str) -> str:
+    """Alan adından etiket: hedef_klasör → "Hedef klasör", isim → "İsim" (Türkçe büyük harf)."""
+    text = name.replace("_", " ").strip()
+    return {"i": "İ", "ı": "I"}.get(text[:1], text[:1].upper()) + text[1:]
+
+
+class _FormField:
+    """form()'daki bir alan: türü (yazı, onay kutusu, seçim), arayüze giden tanımı ve cevabın çevrilmesi."""
+
+    def __init__(self, name: str, field: Field) -> None:
+        self.name = name
+        self.label = field.label or escape(_label_of(name))
+        self.field = field
+        default = field.default
+        if field.choices is not None:
+            self.kind = "choice"
+            self.items = _options(field.choices)
+            if not self.items:
+                raise ValueError(f"form(): {name} alanının seçenekleri boş")
+            self.index = 0 if default is None else _index_of(self.items, default)
+        elif isinstance(default, bool) or field.type is bool:
+            self.kind = "check"
+        else:
+            self.kind = "text"
+            self.convert = field.type or (default.__class__ if default is not None and not isinstance(default, str)
+                                          else str)
+
+    def ui(self) -> dict[str, Any]:
+        spec: dict[str, Any] = {"name": self.name, "label": self.label, "kind": self.kind,
+                                "password": self.field.password, "placeholder": self.field.placeholder}
+        if self.kind == "choice":
+            spec.update(value=self.index, options=[label for label, _ in self.items])
+        elif self.kind == "check":
+            spec["value"] = bool(self.field.default)
+        else:
+            spec["value"] = "" if self.field.default is None else str(self.field.default)
+        return spec
+
+    def parse(self, raw: Any) -> Any:
+        if self.kind == "choice":
+            value = self.items[raw][1]
+        elif self.kind == "check":
+            value = bool(raw)
+        elif raw == "" and self.field.default is not None:
+            value = self.field.default
+        else:
+            value = _convert(raw, self.convert)
+        _check(value, self.field.validate)
+        return value
+
+    def summary(self, raw: Any, value: Any) -> str:
+        if self.kind == "choice":
+            return escape(self.items[raw][0])
+        if self.kind == "check":
+            return "evet" if value else "hayır"
+        if self.field.password:
+            return "••••••"
+        return escape(str(value)) if str(value) else "[faint](boş)[/]"
+
+
+def _form_field(name: str, value: Any) -> _FormField:
+    """form(ad=değer) değerinden alan: Field, Field sınıfı (termik.Password), seçenekler, tür ya da varsayılan."""
+    if isinstance(value, type) and issubclass(value, Field):
+        value = value()
+    if not isinstance(value, Field):
+        if isinstance(value, (list, tuple, dict)):
+            value = Field(choices=value)
+        elif isinstance(value, type):
+            value = Field(type=value)
+        else:
+            value = Field(value)
+    return _FormField(name, value)
+
+
 def _script_name() -> str:
     main = sys.modules.get("__main__")
     path = getattr(main, "__file__", None) or (sys.argv[0] if sys.argv else "")
@@ -414,20 +557,27 @@ def _session() -> Session:
 
 def setup(*, title: str | None = None, theme: str | None = None, look: str | None = None,
           density: str | None = None, size: tuple[int, int] | None = None, mode: str | None = None,
-          keep_open: bool = True, **tokens) -> None:
+          keep_open: bool = True, capture: bool = True, **tokens) -> None:
     """Varsayılan oturumu ayarla; ilk çıktıdan ya da sorudan önce çağrılmalı.
 
         termik.setup(title="Yedekleme", theme="orman", density="dengeli", bar="segment")
 
     title pencere başlığı (varsayılan: script'in adı); theme, look, density ve biçim
     belirteçleri bileşen katmanındakilerle aynı. size pencere boyutu (piksel, ölçek 1.0'da).
+    capture=True (varsayılan) script'in kendi print(), stderr, logging ve input() çağrılarını
+    pencereye taşır; böylece eski bir script'e pencere vermek için bu tek satır yeter. Pencere ilk
+    yazıda ya da ilk soruda açılır. capture=False bunu kapatır.
     """
     global _default
     with _default_lock:
         if _default is not None and _default.started:
             raise RuntimeError("termik.setup() pencere açılmadan, ilk çıktıdan önce çağrılmalı")
+        if _default is not None:
+            _capture.uninstall(_default)
         _default = Session(title=title, theme=theme, look=look, density=density, size=size, mode=mode,
-                           keep_open=keep_open, **tokens)
+                           keep_open=keep_open, capture=capture, **tokens)
+        if capture:
+            _capture.install(_default)
 
 
 def restyle(theme: str | None = None, *, look: str | None = None, density: str | None = None, **tokens) -> None:
@@ -497,6 +647,11 @@ def choose_many(label: str, options: Iterable[T] | dict[str, T], *, default: Ite
 def confirm(label: str, *, default: bool = True, yes: str = "Evet", no: str = "Hayır") -> bool:
     """Evet/hayır sor: if termik.confirm("Silinsin mi?", default=False): …"""
     return _session().confirm(label, default=default, yes=yes, no=no)
+
+
+def form(title: str = "", /, **fields: Any) -> dict[str, Any]:
+    """Birkaç alanı tek seferde sor: termik.form("Bağlantı", sunucu="localhost", port=8080). Ayrıntı: Session.form."""
+    return _session().form(title, **fields)
 
 
 def track(iterable: Iterable[T], label: str = "", *, total: float | None = None,

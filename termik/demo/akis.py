@@ -21,8 +21,11 @@ def main() -> None:
     termik.rule("Ayarlar")
 
     kaynak = termik.ask_path("Kaynak klasör", kind="dir", default=Path.cwd())
-    hedef = termik.ask_path("Hedef klasör", kind="dir", must_exist=False, default=Path.home() / "Yedek")
-    mod = termik.choose("Mod", ["Tam", "Artımlı", "Diferansiyel"], default="Artımlı")
+    ayar = termik.form("Yedekleme",
+                       hedef=termik.Field(Path.home() / "Yedek", label="Hedef klasör"),
+                       mod=termik.Field("Artımlı", choices=["Tam", "Artımlı", "Diferansiyel"]),
+                       sıkıştır=True)
+    hedef, mod = ayar["hedef"], ayar["mod"]
     türler = termik.choose_many("Dosya türleri", [".py", ".md", ".txt", ".json", ".toml", ".png"],
                                 default=[".py", ".md"], min=1)
 
@@ -44,7 +47,7 @@ def main() -> None:
         büyükler = sorted(dosyalar, key=lambda f: f.stat().st_size, reverse=True)[:5]
         termik.table([{"dosya": termik.escape(str(f.relative_to(kaynak))), "KB": round(f.stat().st_size / 1024, 1)}
                       for f in büyükler])
-        termik.ok(f"Bitti: {len(dosyalar)} dosya, [bold]{mod}[/] yedek")
+        termik.ok(f"Bitti: {len(dosyalar)} dosya, [bold]{mod}[/] yedek" + (", sıkıştırılmış" if ayar["sıkıştır"] else ""))
     else:
         termik.warn("Vazgeçildi, hiçbir şey kopyalanmadı.")
 

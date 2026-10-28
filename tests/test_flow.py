@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from termik.app import Pilot  # noqa: E402
-from termik.flow import Session, window  # noqa: E402
+from termik.flow import Field, Password, Session, window  # noqa: E402
 from termik.flow.common import format_table  # noqa: E402
 from termik.flow.terminal import to_ansi  # noqa: E402
 from termik.flow.window import PathBrowser, complete_path  # noqa: E402
@@ -47,6 +47,7 @@ class Harness:
 
     def __init__(self, script, **settings) -> None:
         self.result = self.error = None
+        settings.setdefault("capture", False)  # testin kendi çıktısı pencereye akmasın
         self.session = Session(mode="window", headless=True, **settings)
         self.thread = threading.Thread(target=self._main, args=(script,), daemon=True)
         self.thread.start()
@@ -596,6 +597,124 @@ def test_child_without_pygame_falls_back_to_terminal():
     r = run_child(code, stdin="Efe\n")
     assert "terminalde" in r.stdout and "YOK: termik.App pygame-ce ister" in r.stdout, (r.stdout, r.stderr)
     assert "CEVAP: Efe" in r.stdout and "pygame-ce kurulu değil" in r.stderr
+
+
+# ── form ──────────────────────────────────────────────────
+
+def test_form_in_window():
+    regions = ["Avrupa (Frankfurt)", "Avrupa (İstanbul)", "Asya (Tokyo)", "Amerika (Virginia)", "Amerika (Oregon)"]
+
+    def script(s):
+        return s.form("Bağlantı", sunucu="localhost", port=8080, mod=["Tam", "Artımlı"], bölge=regions,
+                      sıkıştır=True, parola=Password,
+                      isim=Field(label="Kullanıcı", validate=lambda v: bool(v) or "boş olamaz"))
+
+    with Harness(script) as h:
+        form = h.prompt(window.FormPrompt)
+        rows = form.rows
+        assert [plain_text(r.label) for r in rows] == ["Sunucu", "Port", "Mod", "Bölge", "Sıkıştır", "Parola",
+                                                     "Kullanıcı"]
+        kinds = [type(r.field).__name__ for r in rows]
+        assert kinds == ["Input", "Input", "RadioSet", "OptionList", "_FormCheck", "Input", "Input"], kinds
+        assert h.app.focused is rows[0].field and rows[0].field.value == "localhost"
+        h.press("enter")  # sonraki alan
+        assert h.app.focused is rows[1].field
+        h.press("ctrl+a")
+        h.type("abc")
+        h.press("enter", "right", "enter")  # mod: Artımlı
+        h.type("ist")  # uzun seçim süzülebilir listedir
+        h.press("enter", "space", "enter")  # bölge seçildi, sıkıştır kapandı
+        h.type("gizli")
+        h.press("enter", "enter")  # boş isimde ⏎: son alan, gönderir
+        h.until(lambda: form.error)
+        assert form.error == "Port: bir tam sayı girin" and rows[6].error == "boş olamaz"
+        assert h.app.focused is rows[1].field  # ilk hatalı alan
+        h.press("ctrl+a")
+        h.type("9090")
+        h.call(rows[6].field.focus)
+        h.type("efe")
+        h.press("ctrl+enter")
+        assert h.finish() == {"sunucu": "localhost", "port": 9090, "mod": "Artımlı", "bölge": "Avrupa (İstanbul)",
+                              "sıkıştır": False, "parola": "gizli", "isim": "efe"}
+        text = h.done()
+        for part in ("✓ Bağlantı", "  Port  9090", "  Bölge  Avrupa (İstanbul)", "  Sıkıştır  hayır",
+                     "  Parola  ••••••"):
+            assert part in text, part
+        assert "gizli" not in text
+
+
+def test_form_in_terminal():
+    def script(s):
+        return s.form("Bağlantı", sunucu="localhost", port=8080, mod=["Tam", "Artımlı"], sıkıştır=True,
+                      parola=Password)
+
+    result, out, error = run_terminal(script, "\nabc\n2\nh\ngizli\n9090\n")
+    assert error is None, error
+    assert result == {"sunucu": "localhost", "port": 9090, "mod": "Artımlı", "sıkıştır": False, "parola": "gizli"}
+    assert "✗ Port: bir tam sayı girin" in out and "? Port (8080) › " in out and "gizli" not in out
+    assert "✓ Bağlantı" in out and "    Port      9090" in out
+
+
+# ── script'in kendi print() ve input()'u ──────────────────
+
+def test_capture_print_stderr_logging_and_input():
+    import builtins
+    import getpass
+    import logging
+
+    before = (sys.stdout, sys.stderr, builtins.input, getpass.getpass, logging.lastResort, logging.basicConfig)
+
+    def script(s):
+        s.print("başla")  # oturum açılır, yakalama takılır
+        print("düz [bold]yazı[/]")  # köşeli parantez markup sayılmaz
+        print("50%", end="\r")
+        print("100%")  # satır başına dönüş: yalnızca son hali kalır
+        sys.stderr.write("uyarı\n")
+        logging.getLogger("termik.test").warning("disk %d", 90)
+        sys.stdout.write("\x1b[31mrenkli\x1b[0m\n")
+        return input("Adın: "), getpass.getpass()
+
+    with Harness(script, capture=True) as h:
+        p = h.prompt()
+        assert p.label == "Adın"
+        h.type("Efe")
+        h.press("enter")
+        p = h.prompt(after=p)
+        assert p.label == "Parola" and p.input.password
+        h.type("gizli")
+        h.press("enter")
+        assert h.finish() == ("Efe", "gizli")
+        text = h.done()
+        for part in ("düz [bold]yazı[/]", "100%", "uyarı", "⚠ termik.test: disk 90", "renkli", "✓ Adın  Efe",
+                     "✓ Parola  ••••••"):
+            assert part in text, part
+        assert "50%" not in text and "\x1b" not in text
+    assert (sys.stdout, sys.stderr, builtins.input, getpass.getpass, logging.lastResort, logging.basicConfig) == before
+    assert not logging.getLogger().handlers  # eş işleyiciler söküldü
+
+
+def test_child_setup_captures_print_input_and_logging():
+    code = (
+        "import logging, sys, threading, time, termik\n"
+        "termik.setup(keep_open=False)\n"
+        "print('merhaba')  # pencereyi açar\n"
+        "app = termik.flow._default._backend.app\n"
+        "def cevapla():\n"
+        "    while app.active_prompt is None or not app.active_prompt.listening:\n"
+        "        time.sleep(0.02)\n"
+        "    app.call_from_thread(app.active_prompt.answer, 'Efe')\n"
+        "threading.Thread(target=cevapla, daemon=True).start()\n"
+        "ad = input('Adın: ')\n"
+        "logging.warning('disk dolu')\n"
+        "time.sleep(0.3)\n"
+        "lines = [e.plain().replace(chr(10), ' / ') for e in app.transcript.children]\n"
+        "sys.__stdout__.write('PENCERE: ' + ' | '.join(lines) + chr(10))\n"
+    )
+    r = run_child(code)
+    assert r.returncode == 0, r.stderr
+    window = next(line for line in r.stdout.splitlines() if line.startswith("PENCERE: "))
+    assert "merhaba" in window and "✓ Adın  Efe" in window and "⚠ disk dolu" in window, window
+    assert "merhaba" in r.stdout and "disk dolu" in r.stderr  # konsola da yazıldı
 
 
 if __name__ == "__main__":

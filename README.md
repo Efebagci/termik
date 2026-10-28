@@ -86,10 +86,12 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 | `choose(soru, seçenekler, default=)` | Liste, `(etiket, değer)` çiftleri ya da sözlük alır, değeri döndürür; yazdıkça bulanık süzülür (`artim` → "Artımlı") |
 | `choose_many(soru, seçenekler, default=, min=, max=)` | Çoklu seçim: space işaretler, ctrl+a görünenlerin hepsini işaretler ya da kaldırır |
 | `confirm(soru, default=True, yes=, no=)` | `bool` döndürür; ←/→ ve Enter, ya da baş harfler (`e`/`h`) |
+| `form(başlık, **alanlar)` | Birkaç alanı tek seferde sorar, sözlük döndürür (aşağıda) |
 | `track(yinelenebilir, etiket, total=, unit=)` | Döngüyü ilerleme çubuğuyla sarar; `break` ile biterse satır "durduruldu" olur |
 | `progress(etiket, total=, unit=)` | Elle ilerletilen çubuk: `with … as p: p.advance(n)`; `unit="B"` boyutları KB/MB gösterir |
 | `spinner(etiket)` | `with` bloğu süresince dönen işaret ve geçen süre; `sp.update("12 MB alındı")` açıklama ekler |
-| `setup(title=, theme=, look=, density=, keep_open=, mode=, …)` | İlk çağrıdan önce: pencere başlığı, görünüm ve biçim belirteçleri (bileşen katmanındakilerle aynı) |
+| `setup(title=, theme=, look=, density=, keep_open=, mode=, capture=, …)` | İlk çağrıdan önce: pencere başlığı, görünüm ve biçim belirteçleri (bileşen katmanındakilerle aynı), yakalama |
+| `restyle(theme=, look=, density=, …)` | Görünümü çalışırken değiştirir |
 
 ![akış: ilerleme](docs/ekran/akis-ilerleme.png)
 
@@ -108,6 +110,44 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
   en çok 2000 çıktı satırı tutulur.
 
 ![akış: gözat](docs/ekran/akis-gozat.png)
+
+**Form.** Birkaç alanı tek ekranda sorar; değerin türü alanı belirler:
+
+```python
+ayar = termik.form("Bağlantı",
+    sunucu="localhost",        # yazı alanı, dolu gelir
+    port=8080,                 # sayı: cevap int'e çevrilir
+    mod=["Tam", "Artımlı"],    # seçim: kısa liste radyo, uzun liste süzülebilir liste
+    sıkıştır=True,             # onay kutusu
+    parola=termik.Password)    # gizli yazı
+ayar["port"]                   # → 8080
+```
+
+`str`, `int`, `float` ya da `Path` türü boş bir alan açar. Etiketler adlardan çıkar
+(`hedef_klasör` → "Hedef klasör", `isim` → "İsim"). Etiket, doğrulama ya da seçimde varsayılan
+için `termik.Field(8080, label="Port numarası", validate=…)`, `termik.Field("Artımlı",
+choices=[…])`. Tab alanlar arasında gezer, ⏎ sonraki alana geçer (sonuncusunda gönderir), ctrl+⏎
+hemen gönderir. Hatalı alanların etiketi kırmızıya döner, odak ilkine gider ve form yeniden sorulur.
+Cevaplanınca başlığın altında alan başına bir özet satırı kalır. Terminalde alanlar sırayla sorulur.
+
+![akış: form](docs/ekran/akis-form.png)
+
+**Script'in kendi `print()` ve `input()`'u.** Pencere açıkken (varsayılan olarak) script'in
+`print()`'leri, `sys.stdout` ve `sys.stderr`'e yazılanlar dökümde de görünür; konsol varsa oraya da
+yazılmayı sürdürür. `stderr` kırmızıdır, `\r` ile yerinde güncellenen satırlar (tqdm gibi) dökümde de
+yerinde güncellenir, renk kaçışları atılır. logging kayıtları simgeli satır olur (`⚠ disk dolu`);
+kendi `basicConfig` ayarın konsolda geçerliliğini korur. `input()` ve `getpass.getpass()`
+pencerede soru olarak sorulur. Böylece eski bir script'e pencere vermek için tek satır yeter:
+
+```python
+import termik
+termik.setup()             # pencere ilk yazıda açılır
+
+ad = input("Adın: ")       # → pencerede soru
+print(f"Merhaba {ad}")     # → dökümde satır
+```
+
+Pencere kapanınca her şey eski haline döner; `setup(capture=False)` yakalamayı kapatır.
 
 **Terminal kipi.** Pencere açılamıyorsa (pygame-ce kurulu değil, Linux'ta görüntü sunucusu yok)
 aynı script terminalde çalışır. macOS pencereyi ana thread'de istediği için orada da şimdilik terminal
@@ -180,6 +220,7 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 | `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
+| `OptionList` | Süzülebilir seçenek listesi: yazdıkça bulanık süzer (Türkçe harfler gevşek eşleşir), `rows=` satır gösterir; `multi=True` ile çoklu seçim. `Highlighted`, `Selected`, `Submitted` mesajları |
 | `ProgressBar` | Temadaki çubuk biçimiyle ilerleme + yüzde |
 | `Log` | Kayan kayıt: `info/ok/warn/error`, saat damgası, tekerlek ve tuşlarla gezinme, canlı takip |
 | `Tree`, `DirectoryTree` | Açılır kapanır ağaç: `├─ └─` dalları, ←/→ aç-kapa, tembel yükleme (`load_children`); klasör ağacı alt klasörleri ilk açılışta okur |
@@ -219,6 +260,10 @@ açılamazsa terminale düşülür.
 `termik` komutu (`demo`, `akis`, `ayarlar`); tercihler TOML ayar dosyasında ve `TERMIK_*` ortam
 değişkenlerinde, öncelik kod > ortam > dosya > varsayılan. Elle çizilmiş vitrin prototipi emekliye
 ayrıldı; git geçmişinde duruyor.
+
+**Akışı genişletme turu:** yakalama varsayılan olarak açık (`print`, `stderr` ve logging dökümde,
+`input()` pencerede); `form()` anahtar kelimelerle yazılır, alanın türü değerden çıkar;
+`OptionList` bileşen katmanına açıldı.
 
 ## Görünüm ayarları
 
@@ -320,7 +365,7 @@ python -m twine upload dist/*
 |---|---|
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
-| `termik/flow/` | Akış API'si: `Session` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru bileşenleri, gözat diyaloğu, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); ortak ilerleme kaydı ve biçimleme (`common.py`) |
+| `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, gözat diyaloğu, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `App`: asyncio döngüsü, ekranlar, odak, fare ve klavye yönlendirme, zamanlayıcılar, işçiler, bildirimler; `Pilot` |
 | `termik/widget.py` | `Widget`: ağaç, compose, sorgular, mesajlar, `@action`, flex yerleşim; `Row`, `Column`, `Spacer` |
 | `termik/widgets/` | Hazır bileşenler |
@@ -331,7 +376,7 @@ python -m twine upload dist/*
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 83 test: çekirdek (18), palet/ağaç/tablo/grafik (11), TextArea (12), diyalog/ScrollView (9), akış API'si (24; dördü ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (9) |
+| `tests/` | 88 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (9) |
 
 ## Öğrendiklerimiz
 
@@ -359,12 +404,18 @@ python -m twine upload dist/*
 - **Eş genişlikli fontta genişlik çarpmayla:** satır kaydırma her kelimeyi ayrı ölçüyordu. Birincil
   font eş genişlikliyse (açılışta ölçülerek doğrulanıyor) genişlik harf sayısı × karakter genişliği;
   2000 satırı yeni genişlikte kaydırmak 520 ms'den 58 ms'ye indi.
+- **`logging.warning()` kendiliğinden `basicConfig()` çağırıyor:** kök logger'da işleyici yoksa
+  `stderr`'e yazan bir işleyici kuruluyor, `logging.lastResort` hiç devreye girmiyor. Yakalama bu
+  yüzden `std` akışlara yazan işleyicilerin yanına pencereye yazan bir eş takıyor.
 - **Windows'ta boruya ya da dosyaya giden çıktı cp1254 kodlanıyor:** `✓ ─ ›` gibi simgeler yazılamıyor.
   Terminal kipi bu durumda ASCII karşılıklarına (`+ - >`) düşüyor; konsolda sorun yok.
 
 ## Sıradaki adımlar
 
-1. **macOS kipi:** pencere ana thread'de, script ayrı thread'de.
-2. **Akış API'sinde sonrası:** script'in kendi `print()`'lerini pencereye yönlendirme seçeneği;
-   birkaç alanı tek ekranda soran bir `form()`; seçenek listesini (`OptionList`) bileşen katmanına
-   açmak.
+1. **PyPI'ye ilk yükleme** ve README'deki görsellerin PyPI'de de görünmesi için bir depo adresi.
+2. **Eksik bileşenler:** açılır seçim, sekmeler, kaydırıcı, menü çubuğu ve sağ tık menüsü, ipucu
+   baloncuğu, resim gösterme.
+3. **Birden çok pencere** (pygame-ce'nin `Window` sınıfıyla) ve sistemle bütünleşme: yerel dosya
+   diyaloğu, dosya sürükleyip bırakma, pencere ikonu.
+4. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri.
+5. **Akışta küçük eklemeler:** çok satırlı yazı soran `ask_text`, "devam etmek için ⏎" diyen `pause`.

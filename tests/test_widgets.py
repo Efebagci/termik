@@ -324,6 +324,41 @@ def test_double_click_count():
     run(main())
 
 
+def test_option_list_messages_filter_and_multi():
+    class Lists(ui.App):
+        def __init__(self) -> None:
+            super().__init__()
+            self.events: list = []
+
+        def compose(self):
+            yield ui.OptionList(["Elma", "Armut", "Çilek", "Şeftali"], id="tek", rows=3,
+                                on_select=lambda i: self.events.append(("geri çağrı", i)))
+            yield ui.OptionList(["a", "b", "c"], id="cok", multi=True, selected=[2])
+
+        def on_option_list_highlighted(self, event: ui.OptionList.Highlighted) -> None:
+            self.events.append(("imleç", event.option_list.id, event.index))
+
+        def on_option_list_selected(self, event: ui.OptionList.Selected) -> None:
+            self.events.append(("seçildi", event.index, event.label))
+
+        def on_option_list_submitted(self, event: ui.OptionList.Submitted) -> None:
+            self.events.append(("onaylandı", event.indices))
+
+    async def main():
+        app = Lists()
+        async with app.run_test() as pilot:
+            tek = app.query_one("#tek", ui.OptionList)
+            assert app.focused is tek and tek.region.h == 3 * app.painter.row  # en çok 3 satır
+            await pilot.press("down")
+            await pilot.type("cilek")  # Türkçe harfler gevşek eşleşir
+            assert [tek.options[i] for i, _ in tek.matches] == ["Çilek"] and tek.value == "Çilek"
+            await pilot.press("enter", "tab", "space", "down", "space", "enter")
+            assert app.events == [("imleç", "tek", 1), ("imleç", "tek", 2), ("seçildi", 2, "Çilek"),
+                                  ("geri çağrı", 2), ("imleç", "cok", 1), ("onaylandı", [0, 1, 2])]
+            assert not app._errors
+    run(main())
+
+
 if __name__ == "__main__":
     tests = [(name, fn) for name, fn in list(globals().items()) if name.startswith("test_") and callable(fn)]
     failed = 0
