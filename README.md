@@ -5,12 +5,12 @@ arayüz kütüphanesi.
 
 ![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.7.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
+> **Durum: v0.8.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
 > öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar, menü çubuğu ve
-> sağ tık menüleri, ipuçları ve 24 bileşen var; üç sütunlu bir demo uygulama örnek. Bir uygulama
+> sağ tık menüleri, ipuçları ve 28 bileşen var; üç sütunlu bir demo uygulama örnek. Bir uygulama
 > birden çok pencere açabilir; dosya seçmek için işletim sisteminin kendi diyaloğu açılır, dosya
 > yöneticisinden sürükleyip bırakmak çalışır, pencere simgesi temanın rengini alır.
 
@@ -300,6 +300,10 @@ class Uygulama(ui.App):
 | `Tree`, `DirectoryTree` | Açılır kapanır ağaç: `├─ └─` dalları, ←/→ aç-kapa, tembel yükleme (`load_children`); klasör ağacı alt klasörleri ilk açılışta okur |
 | `Table` | Sabit başlıklı tablo: satır imleci, başlığa tıklayınca doğal sıralama, çift tık/Enter ile seçim |
 | `Sparkline` | Akan değerler için mini grafik; etiket ve son değer |
+| `Image` | Resim (dosya yolu ya da `pygame.Surface`): `fit="contain"` sığdırır, `cover` kırparak doldurur, `stretch` esnetir, `none` asıl boyut; ince çerçeve, `caption=`; açılamayan resim yerinde hata yazar; `source=` ile değişir |
+| `Canvas` | Serbest çizim: `line`, `lines`, `rect`, `circle`, `arc`, `polygon`, `text`, `image` çağrıları saklanır ve kendiliğinden yeniden çizilir; birim karakter/satır (`px=True` piksel); renkler tema adlarıyla; `remove(numara)`, `clear()`; `Canvas.Clicked`, `Canvas.Dragged` |
+| `Spinbox` | Sayı alanı `[ − 12 + ]`: ↑/↓ adım, PgUp/PgDn on adım, Home/End sınırlar, yazınca baştan yazılır (⏎ onaylar, Esc vazgeçer, virgül de ondalık), ± tık ve tekerlek; `min`, `max`, `step`, `format` |
+| `Split` | Bölünebilir kapsayıcı: `with ui.Split(sizes=[32, "1fr"]):`; ayraç sürüklenir (oranlar korunur), çift tık başa döndürür, Alt+Shift+ok klavyeyle kaydırır; `direction="column"` alt alta; `fractions` / `set_fractions()` |
 | `Panel` | Başlıklı çerçeve; içindekileri alt alta dizer; `floating=True` yüzen kutular için |
 | `ScrollView` | Kaydırılabilir kapsayıcı: tekerlek, PgUp/PgDn, sürüklenebilir çubuk; odaktaki bileşeni görünür alana getirir |
 | `Dialog`, `PromptDialog` | Modal kutular; çoğunlukla `App.confirm/alert/prompt` ile kullanılır |
@@ -317,6 +321,10 @@ class Uygulama(ui.App):
 ![sağ tık menüsü](docs/ekran/bilesen-sagtik.png)
 
 ![modern görünümde menü](docs/ekran/bilesen-modern-menu2.png)
+
+![resim, sayı alanı, Canvas ve bölünebilir paneller](docs/ekran/bilesen-kalan.png)
+
+![aynı ekran: resim terminal blokları, sağda oklu sayı alanı, gizli ayraç](docs/ekran/bilesen-kalan-bloklar.png)
 
 ## Kararlar
 
@@ -362,6 +370,11 @@ seçiminde varsayılan işletim sisteminin diyaloğu, `dialogs = "builtin"` ile 
 Varsayılan pencere simgesi komut istemi (`❯` ve imleç, temanın vurgu renginde); uygulama kendi
 simgesini verebilir. Pencereler pygame-ce'nin `Window` sınıfıyla açılıyor, ana pencere de.
 
+**Son bileşenler turu:** `Image`, `Canvas`, `Spinbox`, `Split`. Resim varsayılan olarak gerçek
+pikselleriyle yumuşak ölçeklenir (`image`: `pixel` iri pikseller, `blocks` terminal gibi ▀ yarım
+bloklar); sayı alanı açılır seçimle aynı köşeli dilde (`spin`); ayraç ince çizgi ve ⋮ tutamak
+(`split`). Canvas'ta çağrılar bir çizim listesinde saklanır, koordinatlar karakter ve satır birimi.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -383,6 +396,9 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `tabs` | `inverse` ters renkli · `folder` klasör sekmesi · `underline` alt çizgi · `bracket` `[ Genel ]` | `inverse` |
 | `slider` | `bar` ilerleme çubuğu gibi (`bar` belirtecini izler) · `line` ince iz, yuvarlak tutamak · `value` `◂ 60 ▸` | `bar` |
 | `select` | `bracket` `[ Artımlı ▾ ]` · `arrows` `◂ Artımlı ▸` · `underline` altı çizili | `bracket` |
+| `image` | `smooth` yumuşak ölçek · `pixel` karakter ızgarasına oturan iri pikseller · `blocks` hücre başına iki piksel (▀) | `smooth` |
+| `spin` | `bracket` `[ − 12 + ]` · `arrows` `◂ 12 ▸` · `stacked` alan ve sağda ▴▾ | `bracket` (modern: `stacked`) |
+| `split` | `line` ince çizgi ve ⋮ tutamak · `bar` dolu sütun · `hidden` yalnızca fare gelince | `line` |
 | `radius`, `panel_fill` | köşe yarıçapı; panellerin kart gibi dolu olup olmadığı | `0`, `False` |
 
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
@@ -429,6 +445,7 @@ python tests/test_flow.py
 python tests/test_settings.py
 python tests/test_components.py
 python tests/test_windows.py
+python tests/test_extras.py
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
@@ -442,7 +459,9 @@ odak, `ctrl+o` kaynak klasörü işletim sisteminin diyaloğuyla seçer, `ctrl+q
 (yedekleme sürüyorsa sorar). Dosya yöneticisinden pencereye bırakılan klasör kaynak olur. Görünüm →
 Ayarlar ayrı bir pencere açar: tema, görünüm, yoğunluk ve dosya diyaloğu seçimi iki pencereye de
 hemen yansır, Kaydet ayar dosyasına yazar. Notlar paneli çok satırlı bir yazı alanıdır; Dosya
-menüsünden bir dosyaya açılır ya da kaydedilir (`ctrl+s`).
+menüsünden bir dosyaya açılır ya da kaydedilir (`ctrl+s`). Üç sütun bir `Split`: aradaki ayraçlar
+sürüklenir. Ağaçta bir resmin üstüne gelmek onu Önizleme sekmesinde gösterir; Sistem panelindeki
+halka (Canvas) hedef diskin doluluğu; formdaki "Sakla" bir sayı alanıdır.
 Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
 tık onu kaynak yapar, sağ tık menüsü kaynak ya da hedef yapar ve yolu panoya kopyalar. Biten yedekleme
 geçmiş tablosuna eklenir. Formda sıkıştırma düzeyi bir kaydırıcı ("Sıkıştır" kapalıyken devre dışı),
@@ -487,7 +506,7 @@ python -m twine upload dist/*
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 108 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (11) |
+| `tests/` | 113 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), resim/Canvas/sayı alanı/Split (5), ayarlar ve komut satırı (11) |
 
 ## Öğrendiklerimiz
 
@@ -539,8 +558,7 @@ python -m twine upload dist/*
 ## Sıradaki adımlar
 
 1. **PyPI'ye ilk yükleme** ve README'deki görsellerin PyPI'de de görünmesi için bir depo adresi.
-2. **Kalan bileşenler:** resim gösterme, serbest çizim alanı (Canvas), sayı alanı (Spinbox),
-   bölünebilir paneller.
+2. **Grafik bileşeni** Canvas'ın üstünde: çizgi ve çubuk grafik, eksenler, ipucunda değer.
 3. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri; yerel dosya
    diyaloğunun macOS (osascript) ve Linux (zenity, kdialog) yolları henüz yalnızca yazıldı, denenmedi.
 4. **Akışta küçük eklemeler:** çok satırlı yazı soran `ask_text`, "devam etmek için ⏎" diyen `pause`,

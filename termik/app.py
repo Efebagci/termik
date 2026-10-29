@@ -41,7 +41,9 @@ from .palette import Command, CommandPalette
 from .theme import DENSITIES, THEMES, Theme, mix, with_look
 from .widget import Screen, Widget, action
 
-_CURSORS = {"hand": pygame.SYSTEM_CURSOR_HAND, "ibeam": pygame.SYSTEM_CURSOR_IBEAM}
+_CURSORS = {"hand": pygame.SYSTEM_CURSOR_HAND, "ibeam": pygame.SYSTEM_CURSOR_IBEAM,
+            "ew": pygame.SYSTEM_CURSOR_SIZEWE, "ns": pygame.SYSTEM_CURSOR_SIZENS,
+            "crosshair": pygame.SYSTEM_CURSOR_CROSSHAIR}
 _TOAST = {"info": ("•", "blue"), "ok": ("✓", "green"), "warn": ("⚠", "yellow"), "err": ("✗", "red")}
 _MOUSE = frozenset({pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL})
 _INPUT = _MOUSE | {pygame.KEYDOWN, pygame.KEYUP, pygame.TEXTINPUT, pygame.TEXTEDITING}

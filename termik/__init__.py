@@ -25,7 +25,7 @@ import os
 # pygame-ce içe aktarılırken basılan karşılama satırını sustur
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 from . import settings  # noqa: E402
 from .flow import (Field, Password, ask, ask_path, choose, choose_many, confirm, error, form,  # noqa: E402,A004
@@ -48,9 +48,9 @@ else:
     from .popup import Popup  # noqa: E402
     from .reactive import reactive  # noqa: E402
     from .widget import Column, Row, Screen, Spacer, Widget, action  # noqa: E402
-    from .widgets import (Button, Checkbox, DirectoryTree, Header, Input, KeyBar, Label, Log,  # noqa: E402
-                          OptionList, Panel, ProgressBar, RadioSet, ScrollView, Select, Slider, Sparkline, Static,
-                          StatusBar, Tab, Table, Tabs, TextArea, Tree, TreeNode)
+    from .widgets import (Button, Canvas, Checkbox, DirectoryTree, Header, Image, Input, KeyBar,  # noqa: E402
+                          Label, Log, OptionList, Panel, ProgressBar, RadioSet, ScrollView, Select, Slider,
+                          Sparkline, Spinbox, Split, Static, StatusBar, Tab, Table, Tabs, TextArea, Tree, TreeNode)
 
 
 def __getattr__(name: str):

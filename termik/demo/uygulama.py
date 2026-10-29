@@ -20,12 +20,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import shutil
 import time
 from pathlib import Path
 
 import termik as ui
 
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tga")
 IDLE = "[faint]●[/] [dim]başlamaya hazır[/]"
 HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 
@@ -47,8 +49,14 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 
 [bold]Dosya ağacı[/]
   ↑ ↓      gez · → aç · ← kapat ya da üste çık
-  enter    klasörü kaynak yap (çift tık da olur)
+  enter    klasörü kaynak yap (çift tık da olur);
+           resimde Önizleme sekmesini açar
   sağ tık  kaynak ya da hedef yap, yolu panoya kopyala
+
+[bold]Sütunlar[/]
+  Aradaki ayraçları fareyle sürükle; çift tık başa döndürür.
+  alt+shift+← →  odaktaki sütunun ayracını kaydırır.
+  Sistem panelindeki halka hedef diskin doluluğu (Canvas).
 
 [bold]Geçmiş tablosu[/]
   Başlığa tıkla: o sütuna göre sırala, tekrar: tersine.
@@ -199,8 +207,8 @@ class BackupApp(ui.App):
             ui.Menu("&Yardım", [ui.MenuItem("&Yardım", "help")]),
         )
         yield ui.Header("termik", "bileşen katmanı · demo")
-        with ui.Row(gap=1):
-            yield ui.Panel(FileTree(self.folder, id="tree"), title="Dosyalar", width=32, id="files")
+        with ui.Split(sizes=[32, "1fr", 46], id="columns"):  # sütun aralarındaki ayraçlar sürüklenir
+            yield ui.Panel(FileTree(self.folder, id="tree"), title="Dosyalar", id="files")
             with ui.Column(gap=0.5):
                 with ui.Panel(title="Yedekleme", info="[faint]tam yedek[/]", gap=0.5, id="form"):
                     yield ui.Input(str(self.folder), label="Kaynak klasör", id="src")
@@ -218,6 +226,11 @@ class BackupApp(ui.App):
                         with ui.Row(gap=1):
                             yield ui.Label("[dim]Zamanlama[/]", width=11)
                             yield ui.Select(["Elle", "Her gün 22:00", "Her hafta", "Her ay"], id="schedule")
+                        with ui.Row(gap=1):
+                            yield ui.Label("[dim]Sakla[/]", width=11)
+                            yield ui.Spinbox(5, min=1, max=50, id="keep",
+                                             tooltip="En çok kaç yedek saklansın; eskiler silinir")
+                            yield ui.Label("[dim]yedek[/]")
                         yield ui.Static(IDLE, id="status")
                         yield ui.ProgressBar(id="bar")
                     with ui.Row(gap=2):
@@ -228,18 +241,22 @@ class BackupApp(ui.App):
                 yield ui.Panel(ui.Table(("", 2), ("Tarih", 12), ("Mod", "1fr"), ("Dosya", 6, "right"),
                                         ("Boyut", 9, "right"), ("Süre", 6, "right"), id="history"),
                                title="Geçmiş", info="[faint]başlığa tıkla: sırala[/]")
-            with ui.Column(width=46, gap=0.5):
+            with ui.Column(gap=0.5):
                 with ui.Panel(title="Sistem", info="[faint]bu süreç[/]"):
                     yield ui.Sparkline(label="CPU", value_format="{:.0%}", max_value=1.0, id="cpu",
                                        tooltip="Bu sürecin işlemci kullanımı")
                     yield ui.Sparkline(label="FPS", value_format="{:.0f}", color="accent", id="fps",
                                        tooltip="Saniyede çizilen kare: ekran yalnızca bir şey değişince çizilir")
+                    yield ui.Canvas(height=3, id="disk", tooltip="Hedef klasörün bulunduğu diskin doluluğu")
                 with ui.Panel(id="notes-panel"):
                     with ui.Tabs(id="side"):
                         with ui.Tab("Günlük"):
                             yield EventLog(timestamps=True, id="log")
                         with ui.Tab("Notlar"):
                             yield ui.TextArea(placeholder="notlar…", line_numbers=True, rows=6, id="notes")
+                        with ui.Tab("Önizleme"):
+                            yield ui.Image(width="1fr", height="1fr", placeholder="ağaçta bir resim seç",
+                                           id="preview")
         yield ui.KeyBar()
         yield ui.StatusBar(mode="HAZIR", left="termik demo", id="statusbar")
 
@@ -255,6 +272,7 @@ class BackupApp(ui.App):
             field.drop_replaces = True
         self.log.info("hazır: [bold]f5[/] başlat, [bold]ctrl+p[/] komutlar, [bold]tab[/] gezin")
         self._update_statusbar()
+        self._draw_disk()
         self.set_interval(0.5, self._sample)
 
     # ── eylemler ──────────────────────────────────────────
@@ -287,7 +305,8 @@ class BackupApp(ui.App):
                 self._done = (i, count)
                 bar.progress = i / count
             status = "[green]✓[/]"
-            self.log.ok("yedekleme tamamlandı 🎉")
+            keep = self.query_one("#keep", ui.Spinbox).value
+            self.log.ok(f"yedekleme tamamlandı 🎉 [dim]· son {keep} yedek saklanır[/]")
             self.notify("Yedekleme tamamlandı 🎉", "ok")
         finally:
             seconds = round(time.monotonic() - started)
@@ -420,6 +439,36 @@ class BackupApp(ui.App):
         path = event.node.data
         if path and os.path.isdir(path):
             self.use_source(path)
+        elif path and path.lower().endswith(IMAGE_TYPES):  # resimde ⏎: önizleme sekmesi
+            self.query_one("#side", ui.Tabs).active = 2
+
+    def on_tree_node_highlighted(self, event: ui.Tree.NodeHighlighted) -> None:
+        path = event.node.data
+        if event.tree.id != "tree" or not path or not path.lower().endswith(IMAGE_TYPES):
+            return
+        preview = self.query_one("#preview", ui.Image)
+        preview.source = path
+        image, name = preview.image, ui.escape(os.path.basename(path))
+        preview.caption = f"{name} · {image.get_width()}×{image.get_height()}" if image else name
+
+    def _draw_disk(self) -> None:
+        """Hedef klasörün diskinin doluluğu: Canvas'ta halka gösterge."""
+        canvas = self.query_one("#disk", ui.Canvas)
+        canvas.clear()
+        target = self.query_one("#dst", ui.Input).value
+        path = next((p for p in (target, os.path.dirname(target)) if p and os.path.isdir(p)), str(self.folder))
+        try:
+            usage = shutil.disk_usage(path)
+        except OSError:
+            canvas.text(0, 1, "[faint]disk bilgisi alınamadı[/]")
+            return
+        drive = os.path.splitdrive(os.path.abspath(path))[0] or os.path.abspath(path)
+        used = usage.used / usage.total
+        color = "red" if used > 0.9 else "yellow" if used > 0.75 else "accent"
+        canvas.arc(3, 1.5, 2.6, 0, 360, color="raised", width=5)
+        canvas.arc(3, 1.5, 2.6, 90 - 360 * used, 90, color=color, width=5)  # tepeden saat yönüne
+        canvas.text(7, 0.5, f"[bold]{ui.escape(drive)}[/] [{color}]%{used * 100:.0f}[/] dolu")
+        canvas.text(7, 1.5, f"[dim]{human(usage.free)} boş · {human(usage.total)}[/]")
 
     def _set_input(self, selector: str, path: str, what: str) -> None:
         field = self.query_one(selector, ui.Input)
@@ -432,6 +481,7 @@ class BackupApp(ui.App):
 
     def use_target(self, path: str) -> None:
         self._set_input("#dst", path, "hedef")
+        self._draw_disk()
 
     def copy_path(self, path: str) -> None:
         ui.clipboard.put_text(path)

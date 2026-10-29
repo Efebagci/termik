@@ -86,7 +86,7 @@ class Widget:
     direction = "column"                      # çocukların dizimi: column ya da row
     can_focus = False
     accepts_text = False       # odaktayken harf tuşları kısayol değil yazı sayılır
-    cursor: str | None = None  # üstüne gelince fare imleci: "hand" ya da "ibeam"
+    cursor: str | None = None  # üstüne gelince fare imleci: "hand", "ibeam", "ew", "ns", "crosshair"
 
     _actions: dict[str, ActionInfo] = {}
 

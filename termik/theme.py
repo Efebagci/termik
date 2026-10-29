@@ -81,6 +81,9 @@ class Theme:
     tabs: str = "inverse"       # inverse ters renkli · folder klasör sekmesi · underline alt çizgi · bracket [ Genel ]
     slider: str = "bar"         # bar ilerleme çubuğu gibi · line ince iz ve yuvarlak tutamak · value ◂ 60 ▸
     select: str = "bracket"     # bracket [ Artımlı ▾ ] · arrows ◂ Artımlı ▸ · underline altı çizili
+    image: str = "smooth"       # smooth yumuşak ölçek · pixel iri pikseller · blocks terminal gibi ▀ yarım bloklar
+    spin: str = "bracket"       # bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾
+    split: str = "line"         # line ince çizgi ve ⋮ tutamak · bar dolu sütun · hidden yalnızca fare gelince
 
     def color(self, name: str) -> Color | None:
         """Markup'taki renk adını çöz: 'green', 'accent', '#ff8800'… Bilinmiyorsa None."""
@@ -141,10 +144,12 @@ THEMES: dict[str, Theme] = {t.name: t for t in (
 LOOKS: dict[str, dict] = {
     "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="bracket",
                      bar="block", selection="inverse", shadow="hard", radio="paren",
-                     tabs="inverse", slider="bar", select="bracket"),
+                     tabs="inverse", slider="bar", select="bracket", image="smooth", spin="bracket",
+                     split="line"),
     "modern": dict(radius=6, panel_fill=True, title="inline", focus="color", button="pill",
                    bar="block", selection="pointer", shadow="soft", radio="dot",
-                   tabs="underline", slider="line", select="underline"),
+                   tabs="underline", slider="line", select="underline", image="smooth", spin="stacked",
+                   split="line"),
 }
 
 # Yoğunluk kümeleri: satır yüksekliği (doğal yüksekliğin katı) ve panel iç boşlukları
@@ -168,6 +173,9 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "tabs": ("inverse", "folder", "underline", "bracket"),
     "slider": ("bar", "line", "value"),
     "select": ("bracket", "arrows", "underline"),
+    "image": ("smooth", "pixel", "blocks"),
+    "spin": ("bracket", "arrows", "stacked"),
+    "split": ("line", "bar", "hidden"),
 }
 
 
