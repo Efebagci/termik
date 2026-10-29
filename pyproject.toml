@@ -27,10 +27,10 @@ classifiers = [
 ]
 
 [project.urls]
-Belgeler = "https://efebagci.github.io/termik/"
+Belgeler = "https://github.com/Efebagci/termik/tree/main/docs"
 Kaynak = "https://github.com/Efebagci/termik"
 Sorunlar = "https://github.com/Efebagci/termik/issues"
-Galeri = "https://efebagci.github.io/termik/bilesenler.html"
+Galeri = "https://github.com/Efebagci/termik/blob/main/docs/bilesenler.md"
 
 [project.scripts]
 termik = "termik.__main__:main"

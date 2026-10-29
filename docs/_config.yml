@@ -1,8 +1,0 @@
-# GitHub Pages (Ayarlar → Pages → Kaynak: main dalı, /docs klasörü) bu klasörü site olarak yayınlar:
-# https://efebagci.github.io/termik/
-title: termik
-description: CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla — Python arayüz kütüphanesi
-theme: jekyll-theme-midnight
-lang: tr
-exclude:
-  - galeri.py

@@ -7,8 +7,8 @@
 CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla. pygame-ce üzerinde çalışan bir Python
 arayüz kütüphanesi.
 
-**Belgeler:** [efebagci.github.io/termik](https://efebagci.github.io/termik/) · [bileşen galerisi](https://efebagci.github.io/termik/bilesenler.html) ·
-[tarifler](https://efebagci.github.io/termik/tarifler.html) · [kaynak kod](https://github.com/Efebagci/termik)
+**Belgeler:** [giriş](https://github.com/Efebagci/termik/tree/main/docs) · [bileşen galerisi](https://github.com/Efebagci/termik/blob/main/docs/bilesenler.md) · [tarifler](https://github.com/Efebagci/termik/blob/main/docs/tarifler.md) ·
+[kaynak kod](https://github.com/Efebagci/termik)
 
 ![demo](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/demo-calisiyor.png)
 
@@ -495,8 +495,8 @@ bloklar); sayı alanı açılır seçimle aynı köşeli dilde (`spin`); ayraç 
 **Grafik, belgeler ve durum kaydı turu:** grafikler varsayılan olarak yumuşak kenarlı çizgiler ve
 terminal havasında eksenlerle (`chart`: `braille`, `blocks` da seçilebilir); veri katmanı (`plot.py`)
 pygame istemez, terminal de onu kullanır. Durum kaydı isteğe bağlı (`SAVE_STATE = True`) ve hepsini
-saklar. Belgeler `docs/` içinde Markdown; GitHub Pages ile `efebagci.github.io/termik/` adresinde
-(o adresin kökündeki kişisel site etkilenmez). Galeri `docs/galeri.py` ile koddan üretilir; README
+saklar. Belgeler `docs/` içinde Markdown ve GitHub'ın kendi görünümünde okunur; ayrı bir site (Pages)
+açılmadı, belgeler bir alan adına bağlı değil. Galeri `docs/galeri.py` ile koddan üretilir; README
 görselleri PyPI'de de görünsün diye tam adresle bağlı.
 
 **Kısa yazım turu:** özelleştirmeden ödün vermeden daha az kod. Etiketli formlar `ui.Form` +
@@ -632,7 +632,7 @@ python -m twine upload dist/*
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `yeni`, `çalıştır`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
 | `termik/plot.py` | Grafik verisi (pygame'siz): seriler, eksen adımları, Türkçe sayı biçimi, terminal için blok grafik |
-| `docs/` | Belge sitesi (GitHub Pages): giriş, bileşen galerisi (`galeri.py` üretir), tarifler; README görselleri |
+| `docs/` | Belgeler (GitHub'da okunur): giriş (`README.md`), bileşen galerisi (`galeri.py` üretir), tarifler; README görselleri |
 | `termik/dev.py` | Proje iskeletleri (`termik yeni`) ve kaydettikçe yeniden başlatan izleyici (`termik çalıştır --izle`) |
 | `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |
