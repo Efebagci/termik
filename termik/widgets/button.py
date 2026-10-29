@@ -65,7 +65,7 @@ class Button(Widget):
         h = p.button_size(self.label, self.primary)[1]
         c = self.content
         p.button(c.x, c.y + max(0, (c.h - h) // 2), self.label, primary=self.primary,
-                 hot=not self.disabled and (self.hovered or self.has_focus))
+                 hot=not self.disabled and (self.hovered or self.has_focus), disabled=self.disabled)
 
     def press(self) -> None:
         if self.disabled:

@@ -349,6 +349,84 @@ def test_demo_menu_context_menu_and_tabs():
     run(main())
 
 
+def test_option_list_fills_its_height():
+    picked: list[int] = []
+
+    class Kenar(ui.App):
+        def compose(self):
+            with ui.Row(height="1fr", gap=2):
+                yield ui.OptionList([f"sohbet {i}" for i in range(40)], height="1fr", id="dolu",
+                                    on_select=picked.append)
+                yield ui.OptionList([f"x{i}" for i in range(40)], rows=5, id="auto")
+                yield ui.OptionList(["a", "b"], height=10, id="az")
+
+    async def main():
+        app = Kenar()
+        async with app.run_test(size=(900, 600)) as pilot:
+            row = app.painter.row
+            full = app.query_one("#dolu", ui.OptionList)
+            shown = full._visible_rows()
+            assert shown == full.content.h // row and shown > full.rows  # panelin yüksekliği kadar
+            auto = app.query_one("#auto", ui.OptionList)
+            assert auto._visible_rows() == 5 and auto.region.h == 5 * row  # rows hâlâ kendiliğinden yükseklik
+            assert app.query_one("#az", ui.OptionList)._visible_rows() == 2  # seçenek sayısıyla sınırlı
+            full.focus()
+            await pilot.press("end")
+            assert full.cursor_line == 39 and full._top == 40 - shown
+            await pilot.press("pageup")
+            assert full.cursor_line == 39 - shown
+            await pilot.press("home")
+            assert full._top == 0
+            await pilot.click(full, offset=(20, (shown - 1) * row + row // 2))  # en alttaki görünen satır
+            assert full.cursor_line == shown - 1 and picked == [shown - 1]
+            await pilot.scroll(full, -3)
+            assert full.cursor_line == min(39, shown + 2)
+            await pilot.type("sohbet 3")  # süzgeç: görünen satır eşleşen sayısı kadar
+            assert full._visible_rows() == len(full.matches) < shown
+            assert not app._errors
+    run(main())
+
+
+def test_disabled_button_looks_disabled():
+    def near(a, b, tolerance=12):
+        return max(abs(x - y) for x, y in zip(a[:3], b)) <= tolerance
+
+    def colours(surface, rect):
+        return [surface.get_at((x, y)) for x in range(rect.left, rect.right) for y in range(rect.top, rect.bottom)]
+
+    class Butonlar(ui.App):
+        def compose(self):
+            with ui.Row(gap=2):
+                yield ui.Button("Kaydet", lambda: None, variant="primary", id="birincil")
+                yield ui.Button("Vazgeç", lambda: None, id="ikincil")
+
+    async def main():
+        for style in CHOICES["button"]:
+            app = Butonlar(button=style)
+            async with app.run_test() as pilot:
+                th = app.theme
+                primary, secondary = app.query_one("#birincil"), app.query_one("#ikincil")
+                app.set_focus(None)  # odaktaki buton "sıcak" renkte çizilir; düz halini karşılaştır
+                app._render()
+                surface = app.native.get_surface()
+                assert any(near(c, th.accent) for c in colours(surface, primary.region)), style
+                assert any(near(c, th.text) for c in colours(surface, secondary.region)), style
+                primary.disabled = secondary.disabled = True
+                await pilot.hover(secondary)  # üstüne gelmek de vurgulamaz
+                app._render()
+                for button in (primary, secondary):
+                    seen = colours(surface, button.region)
+                    assert not any(near(c, th.accent) for c in seen), (style, button.id)  # vurgu dolgusu yok
+                    assert not any(near(c, th.text, 30) for c in seen), (style, button.id)  # yazı sönük
+                    assert any(near(c, th.faint, 30) for c in seen), (style, button.id)
+                primary.disabled = False
+                app.set_focus(None)
+                app._render()
+                assert any(near(c, th.accent) for c in colours(surface, primary.region)), style
+                assert not app._errors
+    run(main())
+
+
 if __name__ == "__main__":
     tests = [(name, fn) for name, fn in list(globals().items()) if name.startswith("test_") and callable(fn)]
     failed = 0

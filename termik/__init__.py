@@ -25,7 +25,7 @@ import os
 # pygame-ce içe aktarılırken basılan karşılama satırını sustur
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 from . import settings  # noqa: E402
 from .flow import (Field, Password, ask, ask_path, chart, choose, choose_many, confirm, error, form,  # noqa: E402,A004

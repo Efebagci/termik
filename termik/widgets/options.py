@@ -26,7 +26,9 @@ class OptionList(Widget):
 
         OptionList(["Tam", "Artımlı", "Diferansiyel"], index=1, rows=5)
 
-    Etiketler düz yazıdır. İmleç değişince OptionList.Highlighted, tekli seçimde OptionList.Selected,
+    rows= kendiliğinden (auto) yükseklikte kaç satır görüneceğidir. height="1fr" ya da sabit bir
+    yükseklik verilirse liste o alanı doldurur: görünen satır sayısı yerleşimin verdiği yükseklikten
+    çıkar (kenar çubuğu gibi). Etiketler düz yazıdır. İmleç değişince OptionList.Highlighted, tekli seçimde OptionList.Selected,
     çoklu kipte ⏎ ile OptionList.Submitted iletilir; on_select verilirse seçilen sıra (çoklu kipte
     sıraların listesi) onunla da bildirilir.
     """
@@ -140,8 +142,14 @@ class OptionList(Widget):
 
     # ── yerleşim ve çizim ────────────────────────────────
 
+    def _capacity(self) -> int:
+        """Sığan satır sayısı: yükseklik sabit ya da pay (fr) ise yerleşimin verdiği alan, yoksa rows."""
+        if self._spec("h").kind != "auto" and self.content.h > 0 and self._app is not None:
+            return max(1, self.content.h // self._app.painter.row)
+        return self.rows
+
     def _visible_rows(self) -> int:
-        return max(1, min(self.rows, len(self.matches)))
+        return max(1, min(self._capacity(), len(self.matches)))
 
     def measure(self, p: Painter, width: int) -> tuple[int, int]:
         if self._longest is None or self._longest[0] != p.ch:
@@ -195,7 +203,7 @@ class OptionList(Widget):
         if key in ("up", "down"):
             self.move(-1 if key == "up" else 1)
         elif key in ("pageup", "pagedown"):
-            self.move((-1 if key == "pageup" else 1) * self.rows, wrap=False)
+            self.move((-1 if key == "pageup" else 1) * self._visible_rows(), wrap=False)
         elif key in ("home", "end"):
             self.move(-len(self.matches) if key == "home" else len(self.matches), wrap=False)
         elif key == "enter":

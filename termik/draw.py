@@ -310,21 +310,35 @@ class Painter:
             return self.text.width(a + label + b, st), self.row
         return self.text.width(label, st) + self.ch * 4, self.row + (6 if th.button == "pill" else 2)
 
-    def button(self, x: int, y: int, label: str, *, primary: bool = False, hot: bool = False) -> pygame.Rect:
+    def button(self, x: int, y: int, label: str, *, primary: bool = False, hot: bool = False,
+               disabled: bool = False) -> pygame.Rect:
         """Buton çiz (theme.button), kapladığı alanı döndür. label düz yazıdır, markup değil.
 
         Köşeli/açılı butonlarda birincil buton hep ters renktedir (Enter'ın varsayılanı); ikincil
-        buton sade yazıdır ve üstüne gelince ters renge döner.
+        buton sade yazıdır ve üstüne gelince ters renge döner. disabled=True soluk çizer: vurgu
+        dolgusu ve üstüne gelme vurgusu olmaz, yazı ve çerçeve sönük renktedir.
         """
         th = self.theme
         w, h = self.button_size(label, primary)
         rect = pygame.Rect(x, y, w, h)
+        if disabled:
+            edge = mix(th.faint, th.bg, 0.45)
+            if th.button in _BRACKETS:
+                a, b = _BRACKETS[th.button]
+                spans: list[Span] = [(a, Style(fg=edge)), (label, Style(bold=primary, fg=th.faint)),
+                                     (b, Style(fg=edge))]
+                self.text.draw(self.surface, x, y, spans, center_in=h)
+            else:
+                radius = max(th.radius, 6) if th.button == "pill" else th.radius
+                self.pill(rect, mix(th.bg, th.raised, 0.55), [(label, Style(bold=primary))], th.faint,
+                          bold=primary, radius=radius)
+            return rect
         if th.button in _BRACKETS:
             a, b = _BRACKETS[th.button]
             if primary or hot:
                 bg = (mix(th.accent, th.text, 0.25) if hot else th.accent) if primary else th.text
                 self.surface.fill(bg, rect)
-                spans: list[Span] = [(a + label + b, Style(bold=primary, fg=th.bg))]
+                spans = [(a + label + b, Style(bold=primary, fg=th.bg))]
             else:
                 spans = [(a, Style(fg=th.faint)), (label, Style(fg=th.text)), (b, Style(fg=th.faint))]
             self.text.draw(self.surface, x, y, spans, center_in=h)

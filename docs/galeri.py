@@ -33,10 +33,12 @@ yield ui.Static("Markup: [bold]kalın[/], [accent]vurgu[/], [green]✓ tamam[/],
 yield ui.Label("Tek satır, sığmazsa kısalır: " + "çok " * 20, width=48)
 '''),
     ("buton", "Button", "İkinci argüman fonksiyon ya da eylem adı; `key=` kısayolu ekranın her yerinde çalışır ve "
-     "kısayol satırında görünür.", '''
+     "kısayol satırında görünür. `disabled=True` buton soluk çizilir ve basılmaz; durum değişince "
+     "`buton.disabled = False` yeter.", '''
 with ui.Row(gap=2):
     yield ui.Button("Vazgeç", "app.quit")
     yield ui.Button("Kaydet", kaydet, key="ctrl+s", variant="primary")
+    yield ui.Button("Gönder", kaydet, variant="primary", disabled=True)
 '''),
     ("form", "Form, Input, Select, Slider, Spinbox", "Form etiketleri solda hizalı bir sütunda çizer; "
      "`bind=` alanı uygulamanın özniteliğine bağlar.", '''
@@ -54,7 +56,9 @@ with ui.Form():
         yield ui.Checkbox("Şifrele")
     yield ui.RadioSet("Tam", "Artımlı", "Fark", label="Mod")
 '''),
-    ("liste", "OptionList", "Yazdıkça bulanık süzülen seçenek listesi; `multi=True` ile çoklu seçim.", '''
+    ("liste", "OptionList", "Yazdıkça bulanık süzülen seçenek listesi; `multi=True` ile çoklu seçim. "
+     "`rows=` kendiliğinden yükseklikte görünen satır sayısıdır; `height=\"1fr\"` ya da sabit yükseklik "
+     "verilirse liste o alanı doldurur (kenar çubuğu).", '''
 yield ui.OptionList(["Avrupa (Frankfurt)", "Avrupa (İstanbul)", "Asya (Tokyo)", "Amerika (Virginia)"], rows=4)
 '''),
     ("textarea", "TextArea", "Çok satırlı yazı: seçim, pano, geri al, satır numaraları.", '''

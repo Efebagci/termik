@@ -39,7 +39,7 @@ yield ui.Label("Tek satır, sığmazsa kısalır: " + "çok " * 20, width=48)
 
 ## Button
 
-İkinci argüman fonksiyon ya da eylem adı; `key=` kısayolu ekranın her yerinde çalışır ve kısayol satırında görünür.
+İkinci argüman fonksiyon ya da eylem adı; `key=` kısayolu ekranın her yerinde çalışır ve kısayol satırında görünür. `disabled=True` buton soluk çizilir ve basılmaz; durum değişince `buton.disabled = False` yeter.
 
 ![Button](galeri/buton.png)
 
@@ -47,6 +47,7 @@ yield ui.Label("Tek satır, sığmazsa kısalır: " + "çok " * 20, width=48)
 with ui.Row(gap=2):
     yield ui.Button("Vazgeç", "app.quit")
     yield ui.Button("Kaydet", kaydet, key="ctrl+s", variant="primary")
+    yield ui.Button("Gönder", kaydet, variant="primary", disabled=True)
 ```
 
 <a id="form"></a>
@@ -86,7 +87,7 @@ with ui.Form():
 
 ## OptionList
 
-Yazdıkça bulanık süzülen seçenek listesi; `multi=True` ile çoklu seçim.
+Yazdıkça bulanık süzülen seçenek listesi; `multi=True` ile çoklu seçim. `rows=` kendiliğinden yükseklikte görünen satır sayısıdır; `height="1fr"` ya da sabit yükseklik verilirse liste o alanı doldurur (kenar çubuğu).
 
 ![OptionList](galeri/liste.png)
 

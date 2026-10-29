@@ -12,7 +12,7 @@ arayüz kütüphanesi.
 
 ![demo](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.10.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
+> **Durum: v0.11.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
@@ -403,14 +403,14 @@ class Uygulama(ui.App):
 | Bileşen | İş |
 |---|---|
 | `Static`, `Label` | Markup yazı; `Static` genişliğe göre kaydırır, `Label` `…` ile kısalır |
-| `Button` | `[ Tamam ]`; ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık |
+| `Button` | `[ Tamam ]`; ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık; `disabled=True` soluk çizilir (vurgu dolgusu yok) ve basılmaz |
 | `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
 | `Select` | Açılır seçim kutusu: ⏎ ya da tık altında süzülebilir listeyi açar, ←/→ açmadan değiştirir; genişliği en uzun seçeneğe göre sabit |
 | `Slider` | Kaydırıcı: `min`, `max`, `step`; ←/→ adım, PgUp/PgDn onda bir, Home/End uçlar, fareyle sürükleme ve tekerlek |
 | `Tabs`, `Tab` | Sekmeli kapsayıcı: `with ui.Tabs(): with ui.Tab("Genel"): …`; ctrl+tab ya da başlığa tık; odak gizli sekmedeki bir alana geçerse o sekme açılır |
-| `OptionList` | Süzülebilir seçenek listesi: yazdıkça bulanık süzer (Türkçe harfler gevşek eşleşir), `rows=` satır gösterir; `multi=True` ile çoklu seçim. `Highlighted`, `Selected`, `Submitted` mesajları |
+| `OptionList` | Süzülebilir seçenek listesi: yazdıkça bulanık süzer (Türkçe harfler gevşek eşleşir), `rows=` satır gösterir, `height="1fr"` ya da sabit yükseklikle o alanı doldurur (kenar çubuğu); `multi=True` ile çoklu seçim. `Highlighted`, `Selected`, `Submitted` mesajları |
 | `ProgressBar` | Temadaki çubuk biçimiyle ilerleme + yüzde |
 | `Log` | Kayan kayıt: `info/ok/warn/error`, saat damgası, tekerlek ve tuşlarla gezinme, canlı takip |
 | `Tree`, `DirectoryTree` | Açılır kapanır ağaç: `├─ └─` dalları, ←/→ aç-kapa, tembel yükleme (`load_children`); klasör ağacı alt klasörleri ilk açılışta okur |
