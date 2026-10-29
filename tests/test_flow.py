@@ -30,7 +30,8 @@ from termik.app import Pilot  # noqa: E402
 from termik.flow import Field, Password, Session, window  # noqa: E402
 from termik.flow.common import format_table  # noqa: E402
 from termik.flow.terminal import to_ansi  # noqa: E402
-from termik.flow.window import PathBrowser, complete_path  # noqa: E402
+from termik.filedialog import FileBrowser as PathBrowser  # noqa: E402
+from termik.flow.window import complete_path  # noqa: E402
 from termik.markup import plain_text  # noqa: E402
 from termik.theme import THEMES  # noqa: E402
 

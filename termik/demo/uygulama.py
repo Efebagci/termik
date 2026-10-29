@@ -4,12 +4,15 @@
     termik demo C:\\Projeler --theme neon --density ferah
 
 Tuşlar: ctrl+p komut paleti · f1 yardım · tab/shift+tab odak · f5 başlat · esc iptal (onay ister)
-f2 tema · f4 yoğunluk · ctrl+q çık. Alttaki kısayol satırındaki öğelere tıklamak da çalışır.
+f2 tema · f4 yoğunluk · ctrl+o kaynak seç · ctrl+q çık. Alttaki kısayol satırındaki öğelere
+tıklamak da çalışır.
 
 Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
-tık onu kaynak yapar. Kaynak gerçekten taranır (ayrı thread'de, pencere donmadan), kopyalama ise
-taklittir. Sistem paneli bu sürecin kendi CPU kullanımını ve saniyede çizilen kare sayısını
-gösterir: boştayken ikisi de sıfıra yakındır, çünkü ekran yalnızca bir şey değişince çizilir.
+tık onu kaynak yapar. Dosya yöneticisinden pencereye bırakılan klasör de kaynak olur. Kaynak
+gerçekten taranır (ayrı thread'de, pencere donmadan), kopyalama ise taklittir. Görünüm → Ayarlar
+ayrı bir pencere açar; oradaki seçimler iki pencereye de hemen yansır. Sistem paneli bu sürecin
+kendi CPU kullanımını ve saniyede çizilen kare sayısını gösterir: boştayken ikisi de sıfıra
+yakındır, çünkü ekran yalnızca bir şey değişince çizilir.
 """
 
 from __future__ import annotations
@@ -31,10 +34,14 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
   ctrl+p   komut paleti: bütün komutlar buradan aranır
   tab      sonraki alan · shift+tab önceki
   f2 / f4  tema / yoğunluk değiştir
-  ctrl+q   çık (yedekleme sürüyorsa sorar)
+  Görünüm → Ayarlar: ayrı pencerede tema, görünüm, yoğunluk
+  ctrl+q   çık (yedekleme sürüyorsa sorar; ✕ de öyle)
 
 [bold]Yedekleme[/]
   f5       başlat · esc iptal (onay ister)
+  ctrl+o   kaynak klasörü işletim sisteminin diyaloğuyla seç
+  Dosya yöneticisinden pencereye bir klasör bırakmak da
+  onu kaynak yapar; yol alanlarına bırakılan yol oraya yazılır.
   Kaynak klasör gerçekten taranır; tarama ayrı bir
   thread'de koşar, pencere donmaz. Kopyalama taklittir.
 
@@ -50,6 +57,7 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 [bold]Günlük ve notlar[/]
   ctrl+tab sekme değiştirir. Notlar çok satırlı bir yazı alanı:
   ctrl+z geri al, ctrl+y yinele, ctrl+a hepsini seç, ctrl+c/x/v pano.
+  Dosya → Notları aç / kaydet (ctrl+s) dosya diyaloğunu kullanır.
 
 [bold]Sistem paneli[/]
   Bu sürecin kendi CPU kullanımı ve saniyede çizilen kare
@@ -103,6 +111,55 @@ class EventLog(ui.Log):
         return [ui.MenuItem("Günlüğü &temizle", self.clear)]
 
 
+class SettingsWindow(ui.Window):
+    """Ayrı pencerede görünüm ayarları: her seçim iki pencereye de hemen yansır; Kaydet ayar
+    dosyasına yazar, böylece termik ile açılan her uygulama bu tercihleri kullanır."""
+
+    TITLE = "termik · ayarlar"
+    SIZE = (660, 360)
+    DIALOGS = {"native": "İşletim sisteminin", "builtin": "termik gezgini"}
+
+    def compose(self):
+        app = self.app
+        rows = [("Tema", list(ui.THEMES), app.theme.name, "theme"),
+                ("Görünüm", list(ui.LOOKS), app.look, "look"),
+                ("Yoğunluk", list(ui.DENSITIES), app.density, "density"),
+                ("Dosya diyaloğu", list(self.DIALOGS.values()), self.DIALOGS[app.dialogs], "dialogs")]
+        with ui.Panel(title="Görünüm", gap=0.5):
+            for label, options, current, key in rows:
+                with ui.Row(gap=1):
+                    yield ui.Label(f"[dim]{label}[/]", width=16)
+                    yield ui.Select(options, index=options.index(current), id=key)
+            yield ui.Static("[faint]Seçimler bütün pencerelere hemen yansır. Kaydet, ayar dosyasına yazar.[/]")
+        with ui.Row(gap=2):
+            yield ui.Spacer()
+            yield ui.Button("Kaydet", action="save", tooltip=str(ui.settings.config_path()))
+            yield ui.Button("Kapat", action="window.close", variant="primary")
+        yield ui.Spacer()
+        yield ui.KeyBar()
+
+    def on_select_changed(self, event: ui.Select.Changed) -> None:
+        key, value, app = event.select.id, event.value, self.app
+        if key == "dialogs":
+            app.dialogs = next(k for k, v in self.DIALOGS.items() if v == value)
+        else:
+            app.set_theme(**{"name" if key == "theme" else key: value})
+
+    def sync(self) -> None:
+        """Ana penceredeki f2/f4 de buradaki seçimleri güncellesin."""
+        app = self.app
+        for key, current in (("theme", app.theme.name), ("look", app.look), ("density", app.density)):
+            select = self.query_one(f"#{key}", ui.Select)
+            select.index = select.options.index(current)
+
+    @ui.action("Ayar dosyasına kaydet", key="ctrl+s", hint="kaydet")
+    def save(self) -> None:
+        app = self.app
+        path = ui.settings.save({"theme": app.theme.name, "look": app.look, "density": app.density,
+                                 "dialogs": app.dialogs})
+        self.notify(f"kaydedildi: {path.name}", "ok")
+
+
 def human(n: float) -> str:
     for unit in ("B", "KB", "MB", "GB"):
         if n < 1024 or unit == "GB":
@@ -125,14 +182,19 @@ class BackupApp(ui.App):
         self._cancel = False
         self._cpu_mark = (time.perf_counter(), time.process_time())
         self._frames_mark = 0
+        self._settings: SettingsWindow | None = None
 
     def compose(self):
         yield ui.MenuBar(
             ui.Menu("&Dosya", [ui.MenuItem("Yedeklemeyi &başlat", "start"), ui.MenuItem("İ&ptal", "cancel"), None,
-                               ui.MenuItem("&Hedef klasörü değiştir…", "change_target"), None,
+                               ui.MenuItem("&Kaynak klasörü seç…", "choose_source"),
+                               ui.MenuItem("&Hedef klasörü seç…", "change_target"), None,
+                               ui.MenuItem("Notları &aç…", "open_notes"),
+                               ui.MenuItem("Notları &kaydet…", "save_notes"), None,
                                ui.MenuItem("Çı&k", "app.quit")]),
             ui.Menu("&Görünüm", [ui.MenuItem("&Temayı değiştir", "next_theme"),
                                  ui.MenuItem("&Yoğunluğu değiştir", "next_density"), None,
+                                 ui.MenuItem("&Ayarlar…", "open_settings"),
                                  ui.MenuItem("&Komut paleti", "app.command_palette")]),
             ui.Menu("&Yardım", [ui.MenuItem("&Yardım", "help")]),
         )
@@ -189,6 +251,8 @@ class BackupApp(ui.App):
         history = self.query_one("#history", ui.Table)
         for row in HISTORY:
             history.add_row(*row)
+        for field in self.query(ui.Input):  # bırakılan klasör yol alanındakinin yerine geçsin
+            field.drop_replaces = True
         self.log.info("hazır: [bold]f5[/] başlat, [bold]ctrl+p[/] komutlar, [bold]tab[/] gezin")
         self._update_statusbar()
         self.set_interval(0.5, self._sample)
@@ -238,26 +302,66 @@ class BackupApp(ui.App):
                                                yes="İptal et", no="Devam et"):
             self._cancel = True
 
-    async def quit(self) -> None:  # ctrl+q: yedekleme sürerken önce sor
-        if isinstance(self.screen, ui.Dialog):
-            return
-        if not self.running or await self.confirm("Yedekleme sürüyor. Yine de çıkılsın mı?", title="Çıkış",
-                                                  yes="Çık", no="Kal", default=False):
-            self.exit()
+    async def can_close(self) -> bool:  # ✕, Alt+F4 ve ctrl+q: yedekleme sürerken önce sor
+        if not self.running:
+            return True
+        if isinstance(self.screen, ui.Dialog):  # soru zaten açık
+            return False
+        return await self.confirm("Yedekleme sürüyor. Yine de çıkılsın mı?", title="Çıkış", yes="Çık", no="Kal",
+                                  default=False)
 
     @ui.action("Yardım", key="f1", hint="yardım")
     async def help(self) -> None:
         body = ui.ScrollView(ui.Static(HELP), height=14)
         await self.push_screen_wait(ui.Dialog("Yardım", body, buttons=[("Kapat", None)], width=64))
 
-    @ui.action("Hedef klasörü değiştir…")
+    @ui.action("Kaynak klasörü seç…", key="ctrl+o", hint="kaynak")
+    async def choose_source(self) -> None:
+        folder = await self.ask_folder("Yedeklenecek klasör", folder=self.query_one("#src", ui.Input).value)
+        if folder:
+            self.use_source(str(folder))
+
+    @ui.action("Hedef klasörü seç…")
     async def change_target(self) -> None:
-        dst = self.query_one("#dst", ui.Input)
-        value = await self.prompt("Yedeklerin yazılacağı klasör:", title="Hedef klasör", value=dst.value)
-        if value:
-            dst.value = value
-            dst.cursor_position = len(value)
-            self.log.info(f"hedef: [accent]{ui.escape(value)}[/]")
+        dst = self.query_one("#dst", ui.Input).value
+        folder = await self.ask_folder("Yedeklerin yazılacağı klasör", folder=dst if os.path.isdir(dst) else None)
+        if folder:
+            self.use_target(str(folder))
+
+    @ui.action("Notları aç…")
+    async def open_notes(self) -> None:
+        path = await self.ask_open("Notları aç", filetypes=[("Metin", "*.txt *.md"), ("Tümü", "*.*")])
+        if path is None:
+            return
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            self.notify(f"açılamadı: {exc.strerror or exc}", "err")
+            return
+        self.query_one("#notes", ui.TextArea).text = text
+        self.query_one("#side", ui.Tabs).active = 1
+        self.log.info(f"notlar: [accent]{ui.escape(path.name)}[/] açıldı")
+
+    @ui.action("Notları kaydet…", key="ctrl+s", hint="kaydet")
+    async def save_notes(self) -> None:
+        path = await self.ask_save("Notları kaydet", name="notlar.txt",
+                                   filetypes=[("Metin", "*.txt"), ("Markdown", "*.md")])
+        if path is None:
+            return
+        try:
+            path.write_text(self.query_one("#notes", ui.TextArea).text, encoding="utf-8")
+        except OSError as exc:
+            self.notify(f"kaydedilemedi: {exc.strerror or exc}", "err")
+            return
+        self.notify(f"kaydedildi: {path.name}", "ok")
+
+    @ui.action("Ayarlar…")
+    def open_settings(self) -> None:
+        """Ayarlar ayrı pencerede; açıksa öne gelir."""
+        if self._settings is not None and self._settings.is_open:
+            self._settings.native.focus()
+            return
+        self._settings = self.open_window(SettingsWindow())
 
     @ui.action("Temayı değiştir", key="f2", hint="tema")
     def next_theme(self) -> None:
@@ -272,6 +376,8 @@ class BackupApp(ui.App):
     def set_theme(self, name=None, *, density=None, **tokens) -> None:
         super().set_theme(name, density=density, **tokens)
         self._update_statusbar()  # paletteki "Tema: …" komutları da buradan geçer
+        if self._settings is not None and self._settings.is_open:
+            self._settings.sync()
 
     # ── durum ─────────────────────────────────────────────
 
@@ -330,6 +436,13 @@ class BackupApp(ui.App):
     def copy_path(self, path: str) -> None:
         ui.clipboard.put_text(path)
         self.notify("yol panoya kopyalandı", "ok")
+
+    def on_drop(self, event: ui.Drop) -> None:
+        """Pencereye bırakılan klasör (dosyaysa onun klasörü) kaynak olur."""
+        if event.paths:
+            path = event.paths[0]
+            self.use_source(str(path if path.is_dir() else path.parent))
+            self.notify("bırakılan klasör kaynak yapıldı", "ok")
 
     def on_table_row_selected(self, event: ui.Table.RowSelected) -> None:
         cells = event.table.get_row(event.key)

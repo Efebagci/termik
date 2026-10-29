@@ -66,13 +66,13 @@ def _mark(text: str, at: int, tag: str) -> str:
 
 def resolve(item: MenuItem, origin: Widget) -> tuple[Callable | None, str | None]:
     """Öğenin çalıştıracağı fonksiyon (yoksa None) ve gösterilecek kısayol. Eylem adları origin'den
-    yukarı doğru, "app." önekliler doğrudan uygulamada aranır."""
+    yukarı doğru, "app." önekliler uygulamada, "window." önekliler origin'in penceresinde aranır."""
     if item.disabled or item.action is None:
         return None, item.key
     if callable(item.action):
         return item.action, item.key
     scope, _, name = item.action.rpartition(".")
-    for node in ([origin.app] if scope == "app" else [origin, *origin.ancestors()]):
+    for node in origin._action_nodes(scope):
         info = type(node)._actions.get(name)
         if info is not None and not node.disabled:
             return getattr(node, name), item.key or (info.keys[0] if info.keys else None)
@@ -253,11 +253,11 @@ class MenuBar(Widget):
         self._hover: int | None = None
 
     def on_mount(self) -> None:
-        self.app._menubar = self
+        self.window._menubar = self
 
     def on_unmount(self) -> None:
-        if self.app._menubar is self:
-            self.app._menubar = None
+        if self.window._menubar is self:
+            self.window._menubar = None
 
     def measure(self, p, width: int) -> tuple[int, int]:
         return width, p.row
@@ -289,11 +289,11 @@ class MenuBar(Widget):
         if not self.menus:
             return
         index %= len(self.menus)
-        app = self.app
+        window = self.window
         anchor = self._rects[index] if index < len(self._rects) else self.region
         self._open = index
-        app.push_screen(MenuPopup(self.menus[index].items, anchor, origin=app.focused or app.screen, bar=self,
-                                  index=index), callback=self._closed)
+        window.push_screen(MenuPopup(self.menus[index].items, anchor, origin=window.focused or window.screen,
+                                     bar=self, index=index), callback=self._closed)
         self.refresh()
 
     def _closed(self, result) -> None:
@@ -307,7 +307,7 @@ class MenuBar(Widget):
             run_entry(self.app, result)
 
     def handle_key(self, key: str) -> bool:
-        """Uygulamanın ilettiği tuş: F10 ilk menüyü, Alt+kısayol harfi o menüyü açar."""
+        """Pencerenin ilettiği tuş: F10 ilk menüyü, Alt+kısayol harfi o menüyü açar."""
         if key == "f10":
             self.open(0)
             return True

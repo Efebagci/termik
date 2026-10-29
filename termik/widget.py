@@ -26,7 +26,7 @@ from .events import Message
 from .layout import AUTO, FILL, Size, distribute, parse_padding, parse_size, resolve
 
 if TYPE_CHECKING:
-    from .app import App, Timer
+    from .app import App, Timer, Window
     from .draw import Painter
 
 W = TypeVar("W", bound="Widget")
@@ -122,6 +122,7 @@ class Widget:
         self._disabled = disabled
         self._display = display
         self._app: App | None = None
+        self._window: Window | None = None
         self._mounted = False
         self._composed = False
         self._timers: list[Timer] = []
@@ -138,6 +139,13 @@ class Widget:
         if self._app is None:
             raise RuntimeError(f"{self!r} henüz bir uygulamaya bağlı değil")
         return self._app
+
+    @property
+    def window(self) -> Window:
+        """Bileşenin bulunduğu pencere (ana pencerede uygulamanın kendisi)."""
+        if self._window is None:
+            raise RuntimeError(f"{self!r} henüz bir pencereye bağlı değil")
+        return self._window
 
     @property
     def is_mounted(self) -> bool:
@@ -197,7 +205,7 @@ class Widget:
         else:
             self.children.insert(index, child)
         if self._mounted:
-            self.app._mount_tree(child)
+            self.window._mount_tree(child)
 
     def mount(self, *widgets: Widget, before: int | None = None) -> None:
         """Çalışırken bileşen ekle (before: araya gireceği sıra)."""
@@ -209,11 +217,11 @@ class Widget:
         parent = self.parent
         if parent is None:
             return
-        app = self._app
+        window = self._window
         parent.children.remove(self)
         self.parent = None
-        if app is not None:
-            app._unmount_tree(self)
+        if window is not None:
+            window._unmount_tree(self)
 
     def remove_children(self) -> None:
         for child in list(self.children):
@@ -242,7 +250,7 @@ class Widget:
         if value != self._disabled:
             self._disabled = value
             if value and self.has_focus:
-                self.app._move_focus(1)
+                self.window._move_focus(1)
             self.refresh()
 
     @property
@@ -257,12 +265,12 @@ class Widget:
 
     @property
     def has_focus(self) -> bool:
-        return self._app is not None and self._app.focused is self
+        return self._window is not None and self._window.focused is self
 
     @property
     def focus_within(self) -> bool:
         """Odak bu bileşende ya da torunlarından birinde mi."""
-        node = self._app.focused if self._app is not None else None
+        node = self._window.focused if self._window is not None else None
         while node is not None:
             if node is self:
                 return True
@@ -270,13 +278,13 @@ class Widget:
         return False
 
     def focus(self) -> None:
-        if self._app is not None:
-            self._app.set_focus(self)
+        if self._window is not None:
+            self._window.set_focus(self)
 
     def refresh(self, *, layout: bool = False) -> None:
         """Yeniden çizilmesini iste; boyutu da değiştiyse layout=True."""
-        if self._app is not None:
-            self._app._invalidate(layout)
+        if self._window is not None:
+            self._window._invalidate(layout)
 
     # ── mesajlar ve eylemler ──────────────────────────────
 
@@ -325,16 +333,27 @@ class Widget:
     def run_action(self, name: str) -> bool:
         """`name` eylemini bu bileşenden başlayıp yukarı doğru arayıp çalıştır.
 
-        "app." önekli adlar doğrudan uygulamada aranır. Bulunamazsa False döner.
+        "app." önekli adlar uygulamada, "window." önekliler bileşenin penceresinde aranır.
+        Bulunamazsa False döner.
         """
         scope, _, short = name.rpartition(".")
-        node: Widget | None = self.app if scope == "app" else self
-        while node is not None:
+        for node in self._action_nodes(scope):
             if short in type(node)._actions and not node._disabled:
                 node._call(getattr(node, short))
                 return True
-            node = node.parent
         return False
+
+    def _action_nodes(self, scope: str) -> list[Widget]:
+        """Eylem adının arandığı bileşenler: önek yoksa bu bileşenden pencereye kadar (ek pencerede en
+        sonda uygulama), "app." ise uygulama, "window." ise bileşenin penceresi."""
+        if scope == "app":
+            return [self.app]
+        if scope == "window":
+            return [self.window]
+        nodes = [self, *self.ancestors()]
+        if self._window is not None and self._window is not self._app:
+            nodes.append(self._app)
+        return nodes
 
     # ── zamanlayıcılar ve işçiler ─────────────────────────
 
@@ -518,5 +537,5 @@ class Screen(Widget):
 
     def dismiss(self, result: Any = None) -> None:
         """Bu ekranı kapat; sonucu push_screen'e verilen callback (ya da push_screen_wait) alır."""
-        if self.is_mounted and self.app.screen is self:
-            self.app.pop_screen(result)
+        if self.is_mounted and self.window.screen is self:
+            self.window.pop_screen(result)

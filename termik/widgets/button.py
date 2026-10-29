@@ -56,7 +56,7 @@ class Button(Widget):
         if self.on_press is not None:
             self._call(self.on_press, self)
         if self.action and not self.run_action(self.action):
-            self.app.notify(f"eylem bulunamadı: {self.action}", "err")
+            self.window.notify(f"eylem bulunamadı: {self.action}", "err")
 
     def on_click(self, event: Click) -> None:
         event.stop()

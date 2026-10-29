@@ -5,12 +5,14 @@ arayüz kütüphanesi.
 
 ![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.6.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
+> **Durum: v0.7.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
 > öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar, menü çubuğu ve
-> sağ tık menüleri, ipuçları ve 24 bileşen var; üç sütunlu bir demo uygulama örnek.
+> sağ tık menüleri, ipuçları ve 24 bileşen var; üç sütunlu bir demo uygulama örnek. Bir uygulama
+> birden çok pencere açabilir; dosya seçmek için işletim sisteminin kendi diyaloğu açılır, dosya
+> yöneticisinden sürükleyip bırakmak çalışır, pencere simgesi temanın rengini alır.
 
 ![komut paleti](docs/ekran/demo-palet.png)
 
@@ -217,6 +219,69 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 - **Çizim.** Ekran yalnızca bir şey değişince (ya da animasyon varken) çizilir; boşta döngü yalnızca
   olayları yoklar.
 
+## Pencereler ve sistem
+
+```python
+class Ayarlar(ui.Window):
+    TITLE = "Ayarlar"
+    SIZE = (560, 360)
+
+    def compose(self):
+        yield ui.Select(list(ui.THEMES), id="tema")
+        yield ui.Button("Kapat", action="window.close")
+
+    def on_select_changed(self, event):
+        self.app.set_theme(event.value)          # bütün pencerelere yansır
+
+class Uygulama(ui.App):
+    @ui.action("Ayarlar…", key="f9")
+    def ayarlar(self):
+        self.open_window(Ayarlar())              # modal=True: kapanana kadar bu pencere bekler
+
+    @ui.action("Aç…", key="ctrl+o")
+    async def ac(self):
+        yol = await self.ask_open("Resim seç", filetypes=[("Resimler", "*.png *.jpg")])
+        if yol:
+            self.notify(f"açıldı: {yol.name}")
+
+    def on_drop(self, event):                    # dosya yöneticisinden bırakılanlar
+        self.notify(f"{len(event.paths)} dosya bırakıldı")
+
+    async def can_close(self):                   # ✕, Alt+F4 ve ctrl+q önce bunu sorar
+        return await self.confirm("Çıkılsın mı?")
+```
+
+- **Pencereler.** `App` ana penceredir; ek pencere `Window`'dan türetilir ve `open_window()` ile
+  açılır (açanın ortasına yerleşir). Her pencerenin kendi ekran yığını, odağı, faresi, ipucu ve
+  bildirimleri vardır; tema, olay döngüsü, zamanlayıcılar ve işçiler ortaktır. Bileşen kendi
+  penceresine `self.window` ile ulaşır (`self.window.confirm(…)`, `.notify(…)`); `self.app` her
+  yerde uygulamadır. `await self.open_window_wait(pencere)` pencere `close(sonuç)` ile kapanınca
+  sonucu döndürür. `modal=True` ile açılan pencere kapanana kadar öncekiler girdi almaz (Windows'ta
+  işletim sistemi de kilitler: kilitli pencereye tıklamak modal olanı öne getirir).
+- **Kapatma.** ✕, Alt+F4 ve Ctrl+W (ana pencerede Ctrl+Q) `can_close()`'u sorar; `False` dönerse
+  pencere açık kalır, `async` olabilir. `close()` ise sormadan kapatır. Ana pencere kapanınca
+  uygulama da kapanır. Eylem adlarında `window.` öneki bileşenin penceresini gösterir
+  (`action="window.close"`); önceksiz adlar ek pencerede bulunamazsa uygulamada aranır.
+- **Dosya diyalogları.** `await self.ask_open(…)`, `ask_open(multiple=True)`, `ask_save(name=…)`,
+  `ask_folder()` `pathlib.Path` (vazgeçilirse `None`) döndürür. Varsayılan olarak işletim sisteminin
+  diyaloğu açılır: Windows'ta Common Item Dialog, macOS'ta Finder diyaloğu, Linux'ta zenity ya da
+  kdialog. Diyalog ayrı thread'de açılır; açıkken pencere çizilmeye devam eder ama girdi almaz.
+  `dialogs = "builtin"` ayarı (ya da yerel diyaloğun bulunmadığı bir sistem) termik'in klavyeyle
+  gezilen gezginini açar; akış API'sinde `ask_path`'in Ctrl+O'su da aynı ayarı izler.
+- **Sürükle-bırak.** Dosya yöneticisinden bırakılan dosyalar farenin altındaki bileşene `Drop`
+  mesajı olarak gider (`event.paths`, yazı bırakıldıysa `event.text`) ve yukarı kabarcıklanır.
+  `Input` ve `TextArea` yolu bırakılan yere yazar (`Input.drop_replaces = True` ise yazının yerine);
+  akış penceresinde bırakılan dosya cevap bekleyen yol sorusuna gider.
+- **Pencere simgesi.** Verilmezse koyu zeminde temanın vurgu renginde `❯` ve bir imleç bloğu çizilir;
+  tema değişince rengi de değişir. Windows'ta başlık çubuğu ve görev çubuğu boyutları ayrı ayrı
+  çizilir. Kendi simgen için `App(icon="simge.png")`, sınıfta `ICON = …` ya da `window.set_icon(…)`.
+
+![ayarlar penceresi](docs/ekran/pencere-ayarlar.png)
+
+![termik gezgini: kaydet](docs/ekran/pencere-gezgin.png)
+
+![pencere simgesi, her temada](docs/ekran/pencere-simgeleri.png)
+
 ## Bileşenler
 
 | Bileşen | İş |
@@ -238,6 +303,8 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 | `Panel` | Başlıklı çerçeve; içindekileri alt alta dizer; `floating=True` yüzen kutular için |
 | `ScrollView` | Kaydırılabilir kapsayıcı: tekerlek, PgUp/PgDn, sürüklenebilir çubuk; odaktaki bileşeni görünür alana getirir |
 | `Dialog`, `PromptDialog` | Modal kutular; çoğunlukla `App.confirm/alert/prompt` ile kullanılır |
+| `Window` | Ek işletim sistemi penceresi (yukarıda **Pencereler ve sistem**) |
+| `FileBrowser` | termik'in dosya gezgini: açma, çoklu seçim (space işaretler), klasör, kaydetme (ad alanı, uzantı süzgeçten, üzerine yazma onayı); yerel diyalog yoksa açılır |
 | `MenuBar`, `Menu`, `MenuItem` | Menü çubuğu ve menüler (yukarıda **Menüler**) |
 | `Popup` | Bir bileşene ya da noktaya bağlı yüzen kutu: arka planı karartmaz, dışarı tık ya da Esc kapatır; açılır liste ve menülerin temeli |
 | `Header`, `KeyBar`, `StatusBar` | Logo ve saat; geçerli kısayollar (tıklanabilir); mod rozetli durum çubuğu |
@@ -289,6 +356,12 @@ Görünüşleri üç yeni belirteçle seçilir: sekmeler ters renkli (`tabs`), k
 seçim kutusu köşeli (`select`); modern görünümde alt çizgili, ince çizgi, alt çizgili. Menüler,
 açılır liste ve bağlam menüsü arka planı karartmayan ortak bir yüzen kutu (`Popup`) kullanır.
 
+**Çoklu pencere turu:** pencereye ait her şey (ekranlar, odak, fare, ipucu, bildirim, çizim) yeni
+`Window` sınıfına taşındı, `App` ana pencere oldu; böylece eski kod değişmeden çalışıyor. Dosya
+seçiminde varsayılan işletim sisteminin diyaloğu, `dialogs = "builtin"` ile termik'in gezgini.
+Varsayılan pencere simgesi komut istemi (`❯` ve imleç, temanın vurgu renginde); uygulama kendi
+simgesini verebilir. Pencereler pygame-ce'nin `Window` sınıfıyla açılıyor, ana pencere de.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -330,13 +403,15 @@ theme = "orman"
 look = "terminal"
 density = "dengeli"
 mode = "auto"              # akış API'si: auto · window · terminal
+dialogs = "native"         # dosya diyalogları: native (işletim sisteminin) · builtin (termik'in)
 font = "C:/Fonts/Iosevka.ttf"
 bar = "segment"            # yukarıdaki bütün biçim belirteçleri
 accent = "#ff8800"         # renkler de ezilebilir
 ```
 
 Ortam değişkenleri aynı adların `TERMIK_` önekli büyük harflisidir: `TERMIK_THEME=neon`,
-`TERMIK_DENSITY=ferah`, `TERMIK_BAR=ascii`, `TERMIK_MODE=terminal`, `TERMIK_FONT=…`. Geçersiz bir
+`TERMIK_DENSITY=ferah`, `TERMIK_BAR=ascii`, `TERMIK_MODE=terminal`, `TERMIK_DIALOGS=builtin`,
+`TERMIK_FONT=…`. Geçersiz bir
 değer programı durdurmaz: bir kez uyarı yazılır, değer yok sayılır. Kodda verilen yanlış bir ad
 (`App(theme="yok")`) ise `ValueError` verir. Akış API'sinde `termik.restyle(theme="neon")`
 görünümü çalışırken değiştirir.
@@ -353,17 +428,21 @@ python tests/test_dialog_scroll.py
 python tests/test_flow.py
 python tests/test_settings.py
 python tests/test_components.py
+python tests/test_windows.py
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
-sorar (Ctrl+O ile ağaçtan da seçilir), mod ve dosya türlerini seçtirir, klasörü tarar, onay alıp
+sorar (Ctrl+O dosya diyaloğunu açar, klasörü pencereye bırakmak da olur), mod ve dosya türlerini seçtirir, klasörü tarar, onay alıp
 kopyalamayı canlandırır (dosyalara dokunmaz), en büyük dosyaları tabloyla özetler. PowerShell'de
 terminal kipi: `$env:TERMIK_MODE="terminal"; termik akis`.
 
 Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`): menü çubuğu (`alt+d`, `f10`), `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
 thread'de taranır; kopyalama taklittir), `esc` iptal (onay ister), `f2` tema, `f4` yoğunluk, `tab`
-odak, `ctrl+q` çıkış (yedekleme sürüyorsa sorar). Palette "Hedef klasörü değiştir…" yazı soran bir
-diyalog açar; Notlar paneli çok satırlı bir yazı alanıdır.
+odak, `ctrl+o` kaynak klasörü işletim sisteminin diyaloğuyla seçer, `ctrl+q` ya da ✕ çıkış
+(yedekleme sürüyorsa sorar). Dosya yöneticisinden pencereye bırakılan klasör kaynak olur. Görünüm →
+Ayarlar ayrı bir pencere açar: tema, görünüm, yoğunluk ve dosya diyaloğu seçimi iki pencereye de
+hemen yansır, Kaydet ayar dosyasına yazar. Notlar paneli çok satırlı bir yazı alanıdır; Dosya
+menüsünden bir dosyaya açılır ya da kaydedilir (`ctrl+s`).
 Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
 tık onu kaynak yapar, sağ tık menüsü kaynak ya da hedef yapar ve yolu panoya kopyalar. Biten yedekleme
 geçmiş tablosuna eklenir. Formda sıkıştırma düzeyi bir kaydırıcı ("Sıkıştır" kapalıyken devre dışı),
@@ -395,8 +474,9 @@ python -m twine upload dist/*
 |---|---|
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
-| `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, gözat diyaloğu, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
-| `termik/app.py` | `App`: asyncio döngüsü, ekranlar, odak, fare ve klavye yönlendirme, zamanlayıcılar, işçiler, bildirimler; `Pilot` |
+| `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
+| `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |
+| `termik/filedialog.py`, `system.py`, `icon.py` | Dosya diyalogları (Windows'ta COM ile Common Item Dialog, macOS'ta osascript, Linux'ta zenity/kdialog, yoksa `FileBrowser`); işletim sistemi yardımcıları (ekran ölçeği, iki boyutlu pencere simgesi, modal kilit, farenin masaüstü konumu); varsayılan pencere simgesi |
 | `termik/widget.py` | `Widget`: ağaç, compose, sorgular, mesajlar, `@action`, flex yerleşim; `Row`, `Column`, `Spacer` |
 | `termik/widgets/` | Hazır bileşenler |
 | `termik/palette.py`, `fuzzy.py` | Komut paleti (`CommandPalette`, `Command`); Türkçe gevşek bulanık arama |
@@ -407,7 +487,7 @@ python -m twine upload dist/*
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 98 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (10) |
+| `tests/` | 108 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (11) |
 
 ## Öğrendiklerimiz
 
@@ -440,13 +520,28 @@ python -m twine upload dist/*
   yüzden `std` akışlara yazan işleyicilerin yanına pencereye yazan bir eş takıyor.
 - **Windows'ta boruya ya da dosyaya giden çıktı cp1254 kodlanıyor:** `✓ ─ ›` gibi simgeler yazılamıyor.
   Terminal kipi bu durumda ASCII karşılıklarına (`+ - >`) düşüyor; konsolda sorun yok.
+- **Ana pencere de `pygame.Window` ile açılıyor:** `display.set_mode` ile açılanı `Window`'a çeviren
+  `from_display_module` kullanımdan kalkmış. Olaylar `event.window` ile hangi pencereden geldiğini
+  söylüyor; söylemeyen olay klavye ya da fare odağındaki pencereye gidiyor.
+- **SDL son pencereye kapat denince kendiliğinden QUIT yolluyor;** `SDL_QUIT_ON_LAST_WINDOW_CLOSE=0`
+  ile kapatıp kapatmama kararı `can_close()`'a bırakıldı.
+- **`SDL_SetWindowModalFor` yalnızca X11'de var.** Windows'ta modal pencere için sahibi
+  `EnableWindow` ile kilitleniyor ve modal pencere ona sahiplendiriliyor. Sahibi, modal pencere yok
+  edilmeden önce açılmalı; yoksa Windows odağı başka bir uygulamaya veriyor.
+- **Windows başlık çubuğu ve görev çubuğu için farklı boyutta simge istiyor;** SDL tek resmi
+  küçültüyor, kenarlar tırtıklanıyor. İki boyut ayrı ayrı çizilip `WM_SETICON` ile veriliyor.
+- **Pencere gizli açılıp ilk kare çizilince gösteriliyor:** açılışta boş beyaz pencere görünmüyor.
+- **SDL 2'nin bırakma olayında konum yok;** farenin masaüstündeki konumundan pencerenin konumu
+  çıkarılarak bırakılan yer bulunuyor.
+- **Common Item Dialog ctypes ile COM üzerinden açılıyor:** ayrı thread'de, kendi tek thread'li
+  dairesinde. `Show(sahip)` sahibini kendisi kilitliyor; bu arada pygame döngüsü çizmeye devam ediyor.
 
 ## Sıradaki adımlar
 
 1. **PyPI'ye ilk yükleme** ve README'deki görsellerin PyPI'de de görünmesi için bir depo adresi.
 2. **Kalan bileşenler:** resim gösterme, serbest çizim alanı (Canvas), sayı alanı (Spinbox),
    bölünebilir paneller.
-3. **Birden çok pencere** (pygame-ce'nin `Window` sınıfıyla) ve sistemle bütünleşme: yerel dosya
-   diyaloğu, dosya sürükleyip bırakma, pencere ikonu.
-4. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri.
-5. **Akışta küçük eklemeler:** çok satırlı yazı soran `ask_text`, "devam etmek için ⏎" diyen `pause`.
+3. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri; yerel dosya
+   diyaloğunun macOS (osascript) ve Linux (zenity, kdialog) yolları henüz yalnızca yazıldı, denenmedi.
+4. **Akışta küçük eklemeler:** çok satırlı yazı soran `ask_text`, "devam etmek için ⏎" diyen `pause`,
+   soru sormadan dosya diyaloğu açan bir kısayol.

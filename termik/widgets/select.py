@@ -98,7 +98,7 @@ class Select(Widget):
     @action("Listeyi aç", key="enter,space", show=False, palette=False)
     def open(self) -> None:
         if self.options and not self.disabled:
-            self.app.push_screen(_SelectPopup(self), callback=self._picked)
+            self.window.push_screen(_SelectPopup(self), callback=self._picked)
 
     def _picked(self, index: int | None) -> None:
         if index is not None:

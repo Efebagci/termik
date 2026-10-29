@@ -85,6 +85,24 @@ def test_environment_overrides_file():
     assert prefs["tokens"] == {"bar": "ascii", "panel_fill": True}
 
 
+def test_dialogs_preference():
+    with preferences('dialogs = "yerleşik"\n'):
+        assert settings.preferences()["dialogs"] == "builtin"
+        assert termik.App().dialogs == "builtin" and termik.App(dialogs="native").dialogs == "native"
+    with preferences(dialogs="sistem"):
+        assert termik.App().dialogs == "native"
+    with preferences('dialogs = "pencere"\n'), captured() as (_, err):
+        assert "dialogs" not in settings.preferences()
+    assert "native, builtin" in err.getvalue()
+    assert termik.App().dialogs == "native"  # varsayılan: işletim sisteminin diyaloğu
+    try:
+        termik.App(dialogs="x")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("bilinmeyen diyalog türü kabul edilmemeli")
+
+
 def test_broken_file_is_ignored_with_a_warning():
     with preferences('theme = "orman\n'), captured() as (_, err):
         assert settings.preferences() == {"tokens": {}}
@@ -160,7 +178,7 @@ def test_cli_edit_settings_in_terminal():
     import termik.flow as flow
 
     with preferences('theme = "orman"\n# yorum kalır\n', mode="terminal") as path:
-        answers = "neon\n2\n\n3\ne\n"  # tema, görünüm (modern), yoğunluk (varsayılan), kip, kaydet
+        answers = "neon\n2\n\n3\n2\ne\n"  # tema, görünüm (modern), yoğunluk (varsayılan), kip, diyalog, kaydet
         try:
             with captured(answers) as (out, _):
                 assert cli(["ayarlar"]) == 0
@@ -168,7 +186,7 @@ def test_cli_edit_settings_in_terminal():
             flow._default = None
         text = path.read_text(encoding="utf-8")
         assert 'theme = "neon"' in text and 'look = "modern"' in text and 'density = "rahat"' in text
-        assert 'mode = "terminal"' in text and "# yorum kalır" in text
+        assert 'mode = "terminal"' in text and 'dialogs = "builtin"' in text and "# yorum kalır" in text
         assert "✓ Kaydedildi." in out.getvalue()
 
 

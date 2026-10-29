@@ -25,13 +25,12 @@ from typing import Any, Callable
 
 import pygame
 
-from .. import clipboard
+from .. import clipboard, filedialog
 from ..app import App
-from ..dialog import Dialog
-from ..events import Click, Key, MouseDown, MouseMove
+from ..events import Click, Drop, Key, MouseDown, MouseMove
 from ..markup import Span, escape, plain_text
 from ..widget import Widget, action
-from ..widgets import Button, Checkbox, DirectoryTree, Input, OptionList, RadioSet, ScrollView, Static
+from ..widgets import Button, Checkbox, Input, OptionList, RadioSet, ScrollView
 from . import capture
 from .common import LABEL_CAP, SPINNER, STATE_ICONS, Progress, amount, counts, display_width, duration
 
@@ -437,10 +436,11 @@ def _browse_start(value: str) -> str:
 
 class PathPrompt(AskPrompt):
     """Yol sorusu: Tab son parçayı tamamlar (birden çok aday varsa aralarında döner), Ctrl+O
-    klasör ağacını açar."""
+    dosya diyaloğunu açar; dosya yöneticisinden bırakılan yol alana yazılır."""
 
     def __init__(self, label: str, *, value: str = "", kind: str | None = None) -> None:
         super().__init__(label, value=value)
+        self.input.drop_replaces = True
         self.kind = kind
         self.candidates: list[str] = []
         self._cycle: tuple[str, list[str], int] | None = None  # (baş, adaylar, sıradaki)
@@ -514,11 +514,11 @@ class PathPrompt(AskPrompt):
 
     @action("Gözat", key="ctrl+o", hint="gözat")
     async def browse(self) -> None:
-        """Klasör ağacından seç."""
-        browser = PathBrowser(_browse_start(self.input.value), kind=self.kind, title=plain_text(self.label))
-        chosen = await self.app.push_screen_wait(browser)
+        """Dosya diyaloğundan seç: `dialogs` ayarına göre işletim sisteminin ya da termik'in gezgini."""
+        mode = {"file": "open", "dir": "folder"}.get(self.kind, "any")
+        chosen = await filedialog.ask(self.window, mode, plain_text(self.label), folder=_browse_start(self.input.value))
         if chosen and not self.answered:
-            self._set(chosen)
+            self._set(str(chosen))
 
 
 class ChoosePrompt(PromptEntry):
@@ -799,85 +799,6 @@ class FormPrompt(PromptEntry):
         return "\n".join(head + [f"  {plain_text(label)}  {plain_text(value)}" for label, value in self.summaries])
 
 
-class _BrowserTree(DirectoryTree):
-    """Gözat ağacı: space imleçteki yolu seçer."""
-
-    @action("Seç", key="space", show=False, palette=False)
-    def pick(self) -> None:
-        node = self.cursor_node
-        browser = next((a for a in self.ancestors() if isinstance(a, PathBrowser)), None)
-        if node is not None and node.data and browser is not None:
-            browser.pick(node.data)
-
-
-class PathBrowser(Dialog):
-    """Ctrl+O ile açılan klasör ağacı: ⏎ klasörü açar ya da dosyayı seçer, space imleçtekini
-    seçer, ⌫ üst klasöre çıkar. Seçilen yolu, vazgeçilirse None döndürür."""
-
-    def __init__(self, start: str, *, kind: str | None = None, title: str = "") -> None:
-        super().__init__(title or "Gözat", buttons=[("Vazgeç", None), ("Seç", True)], default=1, width=76)
-        self.kind = kind
-        self.folder = start
-        self.tree = _BrowserTree(start, height=14)
-        self.where = Static(self._where(start), wrap=False)
-
-    @staticmethod
-    def _where(path: str) -> str:
-        return f"[faint]{escape(path)}[/]"
-
-    def compose_body(self):
-        yield self.where
-        yield self.tree
-        yield Static(_keys(("⏎", "aç"), ("space", "seç"), ("⌫", "üst klasör"), ("esc", "vazgeç")), wrap=False)
-
-    def on_mount(self) -> None:
-        self.tree.focus()
-
-    def choose(self, result: Any) -> None:
-        if result is True:
-            node = self.tree.cursor_node
-            self.pick(node.data if node is not None and node.data else self.folder)
-        else:
-            self.dismiss(None)
-
-    def pick(self, path: str) -> None:
-        if self.kind == "dir" and not os.path.isdir(path):
-            path = os.path.dirname(path)
-        elif self.kind == "file" and os.path.isdir(path):  # dosya bekleniyor: klasörü aç
-            node = self.tree.cursor_node
-            if node is not None:
-                node.expand()
-            return
-        self.dismiss(path)
-
-    def on_tree_node_highlighted(self, event) -> None:
-        self.where.update(self._where(event.node.data or self.folder))
-
-    def on_tree_node_selected(self, event) -> None:
-        event.stop()
-        path = event.node.data
-        if path and not os.path.isdir(path):  # dosyaya ⏎ ya da çift tık: seç
-            self.pick(path)
-
-    @action("Üst klasör", key="backspace", show=False, palette=False)
-    def go_up(self) -> None:
-        current = os.path.normpath(self.folder)
-        parent = os.path.dirname(current)
-        if not parent or parent == current:
-            return
-        tree = _BrowserTree(parent, height=14)
-        box = self.tree.parent
-        box.mount(tree, before=box.children.index(self.tree))
-        self.tree.remove()
-        self.tree, self.folder = tree, parent
-        tree.focus()
-        for node in tree.root.children:  # geldiğimiz klasör seçili olsun
-            if node.data and os.path.normpath(node.data) == current:
-                tree.select(node)
-                break
-        self.where.update(self._where(parent))
-
-
 # ── pencere ───────────────────────────────────────────────
 
 class StatusLine(Widget):
@@ -1050,6 +971,14 @@ class FlowApp(App):
         if self.outcome is not None and event.key in ("enter", "escape"):
             event.stop()
             self.exit()
+
+    def on_drop(self, event: Drop) -> None:
+        """Pencerenin herhangi bir yerine bırakılan dosya, cevap bekleyen yol sorusuna yazılır."""
+        prompt = self.active_prompt
+        if isinstance(prompt, PathPrompt) and not prompt.answered and event.paths:
+            event.stop()
+            prompt._set(str(event.paths[0]))
+            prompt.input.focus()
 
     @action("Dökümü panoya kopyala", key="ctrl+shift+c", hint="kopyala")
     def copy_transcript(self) -> None:

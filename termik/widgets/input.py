@@ -6,7 +6,7 @@ import time
 from typing import Callable
 
 from .. import clipboard
-from ..events import Key, Message, MouseDown, MouseMove, TextInput
+from ..events import Drop, Key, Message, MouseDown, MouseMove, TextInput
 from ..reactive import reactive
 from ..text import Style
 from ..theme import mix
@@ -26,9 +26,11 @@ class Input(Widget):
     Her değişiklikte Input.Changed, Enter'da Input.Submitted mesajı yukarı iletilir.
 
     Tuşlar: ←/→ (ctrl ile kelime), home/end, shift ile seçim, ctrl+a, ctrl+c/x/v,
-    backspace/delete (ctrl ile kelime), enter.
+    backspace/delete (ctrl ile kelime), enter. Dosya yöneticisinden bırakılan yol bırakılan yere
+    yazılır; drop_replaces = True ise (yol alanları için) yazının yerine geçer.
     """
 
+    drop_replaces = False
     default_height = "auto"
     can_focus = True
     accepts_text = True
@@ -205,6 +207,21 @@ class Input(Widget):
         if event.button and self._anchor is not None:  # sürükleyerek seçim
             self.cursor_position = self._index_at(self.app.painter, event.x)
             self._touch()
+
+    def on_drop(self, event: Drop) -> None:
+        """Dosya yöneticisinden bırakılan yol (ya da yazı) bırakılan yere yazılır."""
+        text = " ".join(event.as_text().splitlines())
+        if self.disabled or not text:
+            return
+        event.stop()
+        self.focus()
+        if self.drop_replaces:
+            self.value = text
+            self.cursor_position = len(text)
+            self._anchor = None
+            return
+        self._move(self._index_at(self.app.painter, event.x), select=False)
+        self.insert(text)
 
     # ── çizim ─────────────────────────────────────────────
 

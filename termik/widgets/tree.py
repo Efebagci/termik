@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import os
 from typing import Any
 
@@ -365,15 +366,19 @@ class DirectoryTree(Tree):
     """Klasör ağacı: alt klasörler ilk açıldıklarında okunur, dosyaların yanında boyut yazar.
 
     node.data dosyanın ya da klasörün tam yoludur. Gizli dosyalar (nokta ile başlayanlar) ve
-    IGNORE'daki klasörler gösterilmez.
+    IGNORE'daki klasörler gösterilmez. patterns=("*.png", "*.jpg") yalnızca eşleşen dosyaları,
+    dirs_only=True yalnızca klasörleri gösterir.
     """
 
     IGNORE = frozenset({"__pycache__", ".git", ".venv", "venv", "node_modules"})
 
-    def __init__(self, path: str, *, show_hidden: bool = False, **kwargs) -> None:
+    def __init__(self, path: str, *, show_hidden: bool = False, patterns=None, dirs_only: bool = False,
+                 **kwargs) -> None:
         path = os.path.abspath(os.path.expanduser(str(path)))
         super().__init__(f"[blue]{escape(os.path.basename(path) or path)}[/]", data=path, **kwargs)
         self.show_hidden = show_hidden
+        self.patterns = [p.casefold() for p in patterns] if patterns else None
+        self.dirs_only = dirs_only
         self.root._allow_expand = True
         self.root.expanded = False
         self.root.expand()
@@ -394,6 +399,10 @@ class DirectoryTree(Tree):
                 continue
         for entry in sorted(dirs, key=lambda e: e.name.casefold()):
             node.add(f"[blue]{escape(entry.name)}[/]", entry.path, allow_expand=True)
+        if self.dirs_only:
+            files = []
+        elif self.patterns:
+            files = [e for e in files if any(fnmatch.fnmatchcase(e.name.casefold(), p) for p in self.patterns)]
         for entry in sorted(files, key=lambda e: e.name.casefold()):
             try:
                 size = _human_size(entry.stat().st_size)

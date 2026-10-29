@@ -25,7 +25,7 @@ import os
 # pygame-ce içe aktarılırken basılan karşılama satırını sustur
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 from . import settings  # noqa: E402
 from .flow import (Field, Password, ask, ask_path, choose, choose_many, confirm, error, form,  # noqa: E402,A004
@@ -39,9 +39,9 @@ except ImportError as _exc:
     _missing = _exc
 else:
     _missing = None
-    from .app import App, Pilot, Timer  # noqa: E402
+    from .app import App, Pilot, Timer, Window  # noqa: E402
     from .dialog import Dialog, PromptDialog  # noqa: E402
-    from .events import (Blur, Click, Focus, Key, Message, MouseDown, MouseEnter,  # noqa: E402
+    from .events import (Blur, Click, Drop, Focus, Key, Message, MouseDown, MouseEnter,  # noqa: E402
                          MouseLeave, MouseMove, MouseScroll, MouseUp, TextInput)
     from .menu import Menu, MenuBar, MenuItem  # noqa: E402
     from .palette import Command, CommandPalette  # noqa: E402

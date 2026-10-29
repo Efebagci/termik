@@ -2,7 +2,7 @@
 
     termik demo [klasör]   bileşen katmanı demosu: çok panelli bir uygulama
     termik akis            akış API'si örneği: script'e birkaç satırla pencere
-    termik ayarlar         görünüm ve kip tercihlerini düzenle
+    termik ayarlar         görünüm, kip ve dosya diyaloğu tercihlerini düzenle
     termik ayarlar --yol   ayar dosyasının yerini yaz
     termik --version       sürümü yaz
 
@@ -28,7 +28,7 @@ def edit_settings() -> None:
     termik.setup(title="termik ayarları")
     termik.print(f"[bold]termik ayarları[/]  [faint]{termik.escape(str(path))}[/]")
     termik.print("[dim]Seçtiğin görünüm hemen uygulanır; kaydedersen her termik penceresi onu kullanır.[/]")
-    overridden = [name for key in ("theme", "look", "density", "mode")
+    overridden = [name for key in ("theme", "look", "density", "mode", "dialogs")
                   if os.environ.get(name := f"TERMIK_{key.upper()}")]
     if overridden:
         termik.warn(f"{', '.join(overridden)} ortam değişkeni dosyadaki değeri ezer")
@@ -45,8 +45,12 @@ def edit_settings() -> None:
                                                         "her zaman pencerede": "window",
                                                         "her zaman terminalde": "terminal"},
                          default=prefs.get("mode", "auto"))
+    dialogs = termik.choose("Dosya seçerken hangi diyalog açılsın?",
+                            {"işletim sisteminin kendi diyaloğu": "native",
+                             "termik'in klavyeyle gezilen gezgini": "builtin"},
+                            default=prefs.get("dialogs", "native"))
 
-    chosen = {"theme": theme, "look": look, "density": density, "mode": mode}
+    chosen = {"theme": theme, "look": look, "density": density, "mode": mode, "dialogs": dialogs}
     termik.table([{"ayar": key, "dosyada": termik.escape(str(saved.get(key, "—"))), "yeni": value}
                   for key, value in chosen.items()])
     if termik.confirm(f"{path} dosyasına kaydedilsin mi?"):

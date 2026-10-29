@@ -73,7 +73,7 @@ class Tabs(Widget):
 
     def watch_active(self, index: int) -> None:
         self._show()
-        focused = self.app.focused
+        focused = self.window.focused
         if focused is not None and any(not tab.display and (focused is tab or tab in focused.ancestors())
                                        for tab in self.tabs):
             self.focus()  # odak gizlenen sekmede kaldı: başlığa gelsin

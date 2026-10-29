@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import termik as ui  # noqa: E402
+from termik.filedialog import FileBrowser  # noqa: E402
 
 
 def run(coro):
@@ -210,12 +211,12 @@ def test_demo_help_and_prompt():
             await pilot.press("escape")
             await pilot.press("ctrl+p")
             await pilot.type("hedef")
-            await pilot.press("enter")  # palet → "Hedef klasörü değiştir…" → yazı soran diyalog
-            assert isinstance(app.screen, ui.PromptDialog)
-            await pilot.press("ctrl+a")
-            await pilot.type("E:\\Yedek")
-            await pilot.press("enter")
-            assert app.query_one("#dst", ui.Input).value == "E:\\Yedek"
+            await pilot.press("enter")  # palet → "Hedef klasörü seç…" → klasör diyaloğu (sahte sürücüde termik'in)
+            browser = app.screen
+            assert isinstance(browser, FileBrowser) and browser.mode == "folder"
+            first = browser.tree.root.children[0].data
+            await pilot.press("down", "space")
+            assert app.query_one("#dst", ui.Input).value == first
             notes = app.query_one("#notes", ui.TextArea)
             notes.focus()
             await pilot.type("ilk not")

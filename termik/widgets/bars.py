@@ -66,7 +66,7 @@ class KeyBar(Widget):
         sep = "  [faint]·[/]  "
         x = c.x
         self._items = []
-        for i, (key, hint, owner, name) in enumerate(self.app.active_bindings()):
+        for i, (key, hint, owner, name) in enumerate(self.window.active_bindings()):
             markup = f"{escape(keys.display(key))} [dim]{escape(hint)}[/]"
             lead = p.text.width(sep) if i else 0
             w = p.text.width(markup)

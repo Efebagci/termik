@@ -6,7 +6,7 @@ import time
 from typing import Callable
 
 from .. import clipboard, keys
-from ..events import Click, Key, Message, MouseDown, MouseMove, MouseScroll, TextInput
+from ..events import Click, Drop, Key, Message, MouseDown, MouseMove, MouseScroll, TextInput
 from ..text import Style
 from ..theme import mix
 from ..widget import Widget
@@ -417,6 +417,16 @@ class TextArea(Widget):
             self.cursor_location = self._loc_at(event.x, event.y)
             self._follow = True
             self.refresh()
+
+    def on_drop(self, event: Drop) -> None:
+        """Bırakılan yazı ya da yollar (her biri ayrı satırda) bırakılan yere eklenir."""
+        text = "\n".join(str(p) for p in event.paths) if event.paths else event.text or ""
+        if self.disabled or self.read_only or not text:
+            return
+        event.stop()
+        self.focus()
+        self._move(self._loc_at(event.x, event.y), select=False)
+        self.insert(text)
 
     def on_click(self, event: Click) -> None:
         if event.count == 2:  # çift tık: kelimeyi seç

@@ -10,6 +10,7 @@ Ayar dosyası TOML'dur. Yeri TERMIK_CONFIG ile değiştirilebilir; yoksa
     look = "terminal"        # terminal · modern
     density = "dengeli"      # sıkı · dengeli · rahat · ferah
     mode = "auto"            # akış API'si: auto · window · terminal
+    dialogs = "native"       # dosya diyalogları: native (işletim sisteminin) · builtin (termik'in)
     font = "C:/Fonts/Iosevka.ttf"
     bar = "segment"          # herhangi bir biçim belirteci
     accent = "#ff8800"       # renkler de ezilebilir
@@ -34,15 +35,17 @@ from .theme import _COLOR_FIELDS, CHOICES, DENSITIES, LOOKS, THEMES, Theme, hex_
 
 MODES = {"auto": "auto", "window": "window", "pencere": "window", "gui": "window",
          "terminal": "terminal", "tty": "terminal"}
+DIALOGS = {"native": "native", "yerel": "native", "sistem": "native", "os": "native",
+           "builtin": "builtin", "yerleşik": "builtin", "termik": "builtin"}
 
 # biçim belirteçleri ve varsayılanları; renklerin varsayılanı yok (temadan gelir)
 TOKENS: dict[str, Any] = {f.name: f.default for f in fields(Theme) if f.name != "name"}
-KEYS = ("theme", "look", "density", "mode", "font", "font_bold", *TOKENS)
+KEYS = ("theme", "look", "density", "mode", "dialogs", "font", "font_bold", *TOKENS)
 
 _HEADER = """\
 # termik ayarları
 # Öncelik: koddaki değer > ortam değişkeni (TERMIK_THEME…) > bu dosya > varsayılan.
-# Ayarlanabilenler: theme, look, density, mode, font, font_bold ve biçim belirteçleri
+# Ayarlanabilenler: theme, look, density, mode, dialogs, font, font_bold ve biçim belirteçleri
 # (title, focus, button, bar, selection, shadow, radio, radius, panel_fill, font_size,
 # line_height, pad_x, pad_y) ile renkler (accent = "#ff8800" gibi).
 """
@@ -106,6 +109,11 @@ def _convert(key: str, raw: Any) -> Any:
         if mode is None:
             raise ValueError("auto, window, terminal")
         return mode
+    if key == "dialogs":
+        kind = DIALOGS.get(str(raw).strip().lower())
+        if kind is None:
+            raise ValueError("native, builtin")
+        return kind
     if key in ("font", "font_bold"):
         path = os.path.expanduser(str(raw))
         if not os.path.isfile(path):
@@ -139,7 +147,8 @@ def _convert(key: str, raw: Any) -> Any:
 def preferences() -> dict[str, Any]:
     """Ortam değişkenleri ve ayar dosyasından gelen, denetlenmiş tercihler.
 
-    {"theme": …, "look": …, "density": …, "mode": …, "font": …, "font_bold": …, "tokens": {…}};
+    {"theme": …, "look": …, "density": …, "mode": …, "dialogs": …, "font": …, "font_bold": …,
+    "tokens": {…}};
     yalnızca ayarlanmış anahtarlar bulunur ("tokens" hep vardır). Ortam değişkeni dosyadakini ezer.
     """
     path = config_path()
@@ -163,9 +172,11 @@ def preferences() -> dict[str, Any]:
     return out
 
 
-def check_names(*, theme: str | None = None, look: str | None = None, density: str | None = None) -> None:
+def check_names(*, theme: str | None = None, look: str | None = None, density: str | None = None,
+                dialogs: str | None = None) -> None:
     """Kodda verilen adları denetle: yanlışsa (ayarlardaki gibi yok sayılmaz) ValueError."""
-    for value, known, what in ((theme, THEMES, "tema"), (look, LOOKS, "görünüm"), (density, DENSITIES, "yoğunluk")):
+    for value, known, what in ((theme, THEMES, "tema"), (look, LOOKS, "görünüm"), (density, DENSITIES, "yoğunluk"),
+                               (dialogs, ("native", "builtin"), "diyalog türü")):
         if value is not None and value not in known:
             raise ValueError(f"bilinmeyen {what}: {value!r} ({', '.join(known)})")
 

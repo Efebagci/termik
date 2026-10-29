@@ -108,6 +108,31 @@ class MouseScroll(MouseEvent):
         self.dx, self.dy = dx, dy
 
 
+class Drop(Event):
+    """Pencereye dosya ya da yazı bırakıldı (dosya yöneticisinden sürükle-bırak). Farenin altındaki
+    bileşenden başlayıp yukarı iletilir. paths: bırakılan dosya ve klasörler (pathlib.Path),
+    text: bırakılan yazı (yoksa None). Input ve TextArea yolu imleç yerine yazar."""
+
+    def __init__(self, paths: list, text: str | None, x: int, y: int) -> None:
+        super().__init__()
+        self.paths = list(paths)
+        self.text = text
+        self.x, self.y = x, y
+
+    @property
+    def pos(self) -> tuple[int, int]:
+        return self.x, self.y
+
+    def as_text(self) -> str:
+        """Yazı alanına girecek hali: tek yol olduğu gibi, birden çoğu tırnaklı ve boşlukla ayrık
+        (terminale dosya bırakmak gibi); yazı bırakıldıysa yazının kendisi."""
+        if not self.paths:
+            return self.text or ""
+        if len(self.paths) == 1:
+            return str(self.paths[0])
+        return " ".join(f'"{p}"' if " " in str(p) else str(p) for p in self.paths)
+
+
 class MouseEnter(Event):
     """Fare bileşenin üstüne geldi."""
 
