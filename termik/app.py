@@ -106,6 +106,10 @@ class App(Widget):
         self._result: Any = None
         self._scale = 1.0
         self._active_until = 0.0
+        self._menubar = None  # ana ekrandaki MenuBar; Alt+harf ve F10 ona gider
+        self._tip: tuple[str, tuple[int, int]] | None = None  # gösterilen ipucu ve fare konumu
+        self._tip_timer: Timer | None = None
+        self._tip_pos = (0, 0)
 
     # ── tema ──────────────────────────────────────────────
 
@@ -323,6 +327,60 @@ class App(Widget):
         self._result = result
         self._running = False
 
+    # ── menüler ve ipuçları ───────────────────────────────
+
+    def open_menu(self, items: list, at, *, origin: Widget | None = None) -> None:
+        """Yüzen menü aç: items MenuItem listesi (None ayraç), at bir nokta (x, y) ya da dikdörtgen.
+        Seçilen öğe menü kapanınca çalışır; eylem adları origin'den (verilmezse odaktaki bileşenden)
+        yukarı doğru aranır."""
+        from .menu import MenuPopup, run_entry
+        popup = MenuPopup(items, at, origin=origin or self.focused or self.screen)
+        self.push_screen(popup, callback=lambda entry: run_entry(self, entry))
+
+    def _menu_key(self, key: str) -> bool:
+        """F10 ve Alt+harf menü çubuğunu, Shift+F10 ve Menü tuşu odaktakinin bağlam menüsünü açar."""
+        if len(self.children) > 1:  # üstte palet, diyalog ya da açık bir menü var
+            return False
+        if key in ("shift+f10", "menu"):
+            target = self.focused or self.screen
+            return self._open_context(target, (target.region.x + self.painter.ch, target.region.y + self.painter.row),
+                                      None)
+        bar = self._menubar
+        return bar is not None and bar.is_mounted and bar.display and bar.handle_key(key)
+
+    def _open_context(self, start: Widget, at, event) -> bool:
+        for widget in (start, *start.ancestors()):
+            items = widget._call(widget.context_menu, event)
+            if items:
+                self.open_menu(items, at, origin=widget)
+                return True
+        return False
+
+    def _schedule_tip(self, target: Widget | None, pos, dragging: bool) -> None:
+        """Fare bir yerde durunca ipucunu göster: her hareket sayacı baştan başlatır."""
+        if self._tip is not None and max(abs(pos[0] - self._tip_pos[0]), abs(pos[1] - self._tip_pos[1])) <= 4:
+            return  # titreme ipucunu kapatmasın
+        self._hide_tip()
+        if dragging or target is None:
+            return
+        text = next((w.tooltip for w in (target, *target.ancestors()) if w.tooltip), None)
+        if text:
+            self._tip_pos = tuple(pos)
+            self._tip_timer = self.set_timer(0.6, lambda: self._show_tip(text, tuple(pos)))
+
+    def _show_tip(self, text: str, pos) -> None:
+        self._tip_timer = None
+        self._tip = (text, pos)
+        self.refresh()
+
+    def _hide_tip(self) -> None:
+        if self._tip_timer is not None:
+            self._tip_timer.stop()
+            self._tip_timer = None
+        if self._tip is not None:
+            self._tip = None
+            self.refresh()
+
     # ── girdi ─────────────────────────────────────────────
 
     def _process_events(self) -> None:
@@ -345,12 +403,14 @@ class App(Widget):
                 self._wheel(pygame.mouse.get_pos(), ev.x, ev.y)
             elif t == pygame.WINDOWLEAVE:
                 self._set_hover(None)
+                self._hide_tip()
             elif t in (pygame.VIDEORESIZE, pygame.WINDOWRESIZED, pygame.WINDOWSIZECHANGED):
                 self._invalidate(True)
             elif t == pygame.WINDOWEXPOSED:
                 self._invalidate(False)
 
     def _key(self, key: str, char: str | None) -> None:
+        self._hide_tip()
         event = Key(key, char)
         path = self._focus_path()
         for node in path:  # öncelikli eylemler (ör. ctrl+q) odak nerede olursa olsun önce
@@ -358,6 +418,8 @@ class App(Widget):
             if info is not None:
                 node._call(getattr(node, info.name))
                 return
+        if self._menu_key(key):
+            return
         typing = self.focused is not None and self.focused.accepts_text and event.is_printable
         for node in path:  # sonra odaktan yukarı: her düzeyde önce on_key, sonra eylemler
             node._handle_message(event)
@@ -411,12 +473,14 @@ class App(Widget):
     def _mouse_move(self, pos, dragging: bool) -> None:
         target = self._hit_test(pos)
         self._set_hover(target)
+        self._schedule_tip(target, pos, dragging)
         if dragging and self._pressed is not None:  # sürükleme basılan bileşene gider
             self._pressed._handle_message(MouseMove(*pos, 1))
         elif target is not None:
             target._handle_message(MouseMove(*pos))
 
     def _mouse_down(self, pos, button: int) -> None:
+        self._hide_tip()
         target = self._hit_test(pos)
         self._pressed = target
         if target is None:
@@ -425,7 +489,9 @@ class App(Widget):
             focusable = next((w for w in (target, *target.ancestors()) if w.can_focus and not w.disabled), None)
             if focusable is not None:
                 self.set_focus(focusable)
-        target.post_message(MouseDown(*pos, button))
+        event = target.post_message(MouseDown(*pos, button))
+        if button == 3 and not event.stopped:  # sağ tık: ilk bağlam menüsü olan bileşenin menüsü
+            self._open_context(target, pos, event)
 
     def _mouse_up(self, pos, button: int) -> None:
         target = self._hit_test(pos)
@@ -440,6 +506,7 @@ class App(Widget):
             pressed.post_message(Click(*pos, button, count=2 if double else 1))
 
     def _wheel(self, pos, dx: int, dy: int) -> None:
+        self._hide_tip()
         target = self._hit_test(pos)
         if target is not None:
             target.post_message(MouseScroll(*pos, dx, dy))
@@ -628,13 +695,15 @@ class App(Widget):
         surface.set_clip(None)
         surface.fill(p.theme.bg)
         for screen in self.children:
-            if screen.modal:
+            if screen.modal and screen.veil:
                 veil = pygame.Surface(full.size, pygame.SRCALPHA)
                 veil.fill((*p.theme.bg, 175))
                 surface.set_clip(None)
                 surface.blit(veil, (0, 0))
             self._paint(screen, full)
         surface.set_clip(None)
+        if self._tip is not None:
+            self._paint_tip(p, *self._tip)
         self._paint_toasts(p)
         pygame.display.flip()
         self._dirty = False
@@ -655,11 +724,32 @@ class App(Widget):
         for child in widget.children:
             self._paint(child, inner)
 
+    def _paint_tip(self, p: Painter, text: str, pos) -> None:
+        """İpucu baloncuğu: farenin sağ altında (yer yoksa üstünde), pencereden taşmadan."""
+        th = p.theme
+        f = p.small
+        lines = f.wrap(text, p.ch * 44)
+        w = max(f.width(line) for line in lines) + p.ch * 2
+        h = len(lines) * f.height + p.row // 2
+        width, height = p.surface.get_size()
+        x = max(4, min(pos[0] + p.ch, width - w - 4))
+        y = pos[1] + p.row
+        if y + h > height - 4:
+            y = max(4, pos[1] - h - p.row // 2)
+        rect = pygame.Rect(x, y, w, h)
+        p.round_rect(rect, mix(th.bg, th.raised, 0.8), radius=min(th.radius, 4))
+        p.outline(rect, th.border, radius=min(th.radius, 4))
+        for i, line in enumerate(lines):
+            f.draw(p.surface, x + p.ch, y + p.row // 4 + i * f.height, line, color=th.text)
+
     def _paint_toasts(self, p: Painter) -> None:
         th = p.theme
         width = p.surface.get_width()
         px, py = p.pad
         y = round(p.row * 0.6)
+        bar = self._menubar
+        if bar is not None and bar.is_mounted:  # menü çubuğunun üstüne binmesin
+            y = max(y, bar.region.bottom + p.row // 3)
         for message, kind in self._toasts[-4:]:
             icon, color = _TOAST.get(kind, _TOAST["info"])
             spans = p.text.elide(f"[{color}]{icon}[/] {message}", width // 2)

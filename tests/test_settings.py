@@ -71,6 +71,12 @@ def test_file_values_are_checked_and_converted():
         assert part in warnings, part
 
 
+def test_component_tokens_are_checked():
+    with preferences('tabs = "folder"\nslider = "x"\nselect = "arrows"\n'), captured() as (_, err):
+        prefs = settings.preferences()
+    assert prefs["tokens"] == {"tabs": "folder", "select": "arrows"} and "bar, line, value" in err.getvalue()
+
+
 def test_environment_overrides_file():
     with preferences('theme = "orman"\nbar = "segment"\nmode = "window"\n', theme="neon", bar="ascii",
                      mode="tty", panel_fill="evet"):

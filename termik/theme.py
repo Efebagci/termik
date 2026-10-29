@@ -78,6 +78,9 @@ class Theme:
     selection: str = "inverse"  # inverse: tam satır ters renk · pointer: ❯ + hafif zemin
     shadow: str = "hard"        # hard: kaydırılmış koyu blok · soft: bulanık · none
     radio: str = "paren"        # paren (•) ( ) · dot ● ○
+    tabs: str = "inverse"       # inverse ters renkli · folder klasör sekmesi · underline alt çizgi · bracket [ Genel ]
+    slider: str = "bar"         # bar ilerleme çubuğu gibi · line ince iz ve yuvarlak tutamak · value ◂ 60 ▸
+    select: str = "bracket"     # bracket [ Artımlı ▾ ] · arrows ◂ Artımlı ▸ · underline altı çizili
 
     def color(self, name: str) -> Color | None:
         """Markup'taki renk adını çöz: 'green', 'accent', '#ff8800'… Bilinmiyorsa None."""
@@ -137,9 +140,11 @@ THEMES: dict[str, Theme] = {t.name: t for t in (
 # Hazır biçim kümeleri: herhangi bir renk temasıyla birleştirilebilir
 LOOKS: dict[str, dict] = {
     "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="bracket",
-                     bar="block", selection="inverse", shadow="hard", radio="paren"),
+                     bar="block", selection="inverse", shadow="hard", radio="paren",
+                     tabs="inverse", slider="bar", select="bracket"),
     "modern": dict(radius=6, panel_fill=True, title="inline", focus="color", button="pill",
-                   bar="block", selection="pointer", shadow="soft", radio="dot"),
+                   bar="block", selection="pointer", shadow="soft", radio="dot",
+                   tabs="underline", slider="line", select="underline"),
 }
 
 # Yoğunluk kümeleri: satır yüksekliği (doğal yüksekliğin katı) ve panel iç boşlukları
@@ -160,6 +165,9 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "selection": ("inverse", "pointer"),
     "shadow": ("hard", "soft", "none"),
     "radio": ("paren", "dot"),
+    "tabs": ("inverse", "folder", "underline", "bracket"),
+    "slider": ("bar", "line", "value"),
+    "select": ("bracket", "arrows", "underline"),
 }
 
 

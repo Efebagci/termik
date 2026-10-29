@@ -105,9 +105,10 @@ class Widget:
 
     def __init__(self, *children: Widget, id: str | None = None, classes: str = "",
                  width=None, height=None, min_width=None, max_width=None, min_height=None, max_height=None,
-                 padding=0, gap=0, disabled: bool = False, display: bool = True) -> None:
+                 padding=0, gap=0, disabled: bool = False, display: bool = True, tooltip: str | None = None) -> None:
         self.id = id
         self.classes = set(classes.split())
+        self.tooltip = tooltip  # fare üstünde durunca gösterilen ipucu (markup)
         self.parent: Widget | None = None
         self.children: list[Widget] = []
         self.region = pygame.Rect(0, 0, 0, 0)   # kapladığı alan, ekran pikseli
@@ -470,6 +471,16 @@ class Widget:
     def _reveal(self, widget: Widget) -> None:
         """Torunlardan biri odak alınca çağrılır; kaydırılabilir kapsayıcılar onu görünür alana getirir."""
 
+    def context_menu(self, event=None) -> list | None:
+        """Sağ tıkta (ya da Shift+F10) açılacak menünün öğeleri; None ise ata bileşenlere bakılır.
+
+            def context_menu(self, event):
+                return [MenuItem("Kopyala", self.copy), None, MenuItem("Sil", "delete")]
+
+        event fareyle açılınca MouseDown, klavyeyle açılınca None'dır.
+        """
+        return None
+
     # ── çizim ─────────────────────────────────────────────
 
     def render(self, p: Painter) -> None:
@@ -501,6 +512,7 @@ class Screen(Widget):
     """Pencereyi kaplayan kök. Modal ekran alttakinin üstüne çizilir ve bütün girdiyi alır."""
 
     modal = False
+    veil = True  # modal ekranın altındakileri karart (açılır listeler ve menüler karartmaz)
     default_width = default_height = "1fr"
     _dismiss_callback: Callable | None = None  # push_screen(callback=…): kapanınca sonuçla çağrılır
 

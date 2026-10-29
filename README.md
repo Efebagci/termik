@@ -5,12 +5,12 @@ arayüz kütüphanesi.
 
 ![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.5.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
+> **Durum: v0.6.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
-> öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar ve 18 bileşen var;
-> üç sütunlu bir demo uygulama örnek.
+> öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar, menü çubuğu ve
+> sağ tık menüleri, ipuçları ve 24 bileşen var; üç sütunlu bir demo uygulama örnek.
 
 ![komut paleti](docs/ekran/demo-palet.png)
 
@@ -206,6 +206,12 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
   `await self.prompt("Yeni ad", value="rapor.md")`. Kendi diyaloğun için `Dialog(başlık, içerik,
   buttons=[("Vazgeç", False), ("Sil", True)])` ve `await self.push_screen_wait(diyalog)`; ekranlar
   `dismiss(sonuç)` ile kapanır, odak önceki yerine döner. Diyalog açıkken arka plandaki işler sürer.
+- **Menüler.** `MenuBar(Menu("&Dosya", [MenuItem("Kaydet", "save"), None, …]))`: öğeler bir eylem adı
+  ya da fonksiyonla verilir, eylemin kısayolu menüde kendiliğinden yazar; bulunamayan eylem soluk
+  görünür. Alt+harf ya da F10 menüyü açar, açıkken ←/→ komşu menüye geçer. Bir bileşenin
+  `context_menu(event)` metodu öğe döndürürse sağ tık (ya da Shift+F10) o menüyü açar;
+  `app.open_menu(öğeler, (x, y))` istenen yerde açar.
+- **İpuçları.** Her bileşen `tooltip="…"` alır; fare üstünde 0,6 sn durunca baloncuk çıkar.
 - **Bildirim ve hatalar.** `notify("…", "ok")` sağ üstte kısa süreli bildirim gösterir. İşleyicideki
   bir hata uygulamayı düşürmez: konsola iz, ekrana bildirim olarak düşer.
 - **Çizim.** Ekran yalnızca bir şey değişince (ya da animasyon varken) çizilir; boşta döngü yalnızca
@@ -220,6 +226,9 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 | `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
+| `Select` | Açılır seçim kutusu: ⏎ ya da tık altında süzülebilir listeyi açar, ←/→ açmadan değiştirir; genişliği en uzun seçeneğe göre sabit |
+| `Slider` | Kaydırıcı: `min`, `max`, `step`; ←/→ adım, PgUp/PgDn onda bir, Home/End uçlar, fareyle sürükleme ve tekerlek |
+| `Tabs`, `Tab` | Sekmeli kapsayıcı: `with ui.Tabs(): with ui.Tab("Genel"): …`; ctrl+tab ya da başlığa tık; odak gizli sekmedeki bir alana geçerse o sekme açılır |
 | `OptionList` | Süzülebilir seçenek listesi: yazdıkça bulanık süzer (Türkçe harfler gevşek eşleşir), `rows=` satır gösterir; `multi=True` ile çoklu seçim. `Highlighted`, `Selected`, `Submitted` mesajları |
 | `ProgressBar` | Temadaki çubuk biçimiyle ilerleme + yüzde |
 | `Log` | Kayan kayıt: `info/ok/warn/error`, saat damgası, tekerlek ve tuşlarla gezinme, canlı takip |
@@ -229,8 +238,18 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 | `Panel` | Başlıklı çerçeve; içindekileri alt alta dizer; `floating=True` yüzen kutular için |
 | `ScrollView` | Kaydırılabilir kapsayıcı: tekerlek, PgUp/PgDn, sürüklenebilir çubuk; odaktaki bileşeni görünür alana getirir |
 | `Dialog`, `PromptDialog` | Modal kutular; çoğunlukla `App.confirm/alert/prompt` ile kullanılır |
+| `MenuBar`, `Menu`, `MenuItem` | Menü çubuğu ve menüler (yukarıda **Menüler**) |
+| `Popup` | Bir bileşene ya da noktaya bağlı yüzen kutu: arka planı karartmaz, dışarı tık ya da Esc kapatır; açılır liste ve menülerin temeli |
 | `Header`, `KeyBar`, `StatusBar` | Logo ve saat; geçerli kısayollar (tıklanabilir); mod rozetli durum çubuğu |
 | `Row`, `Column`, `Spacer` | Yerleşim |
+
+![menü](docs/ekran/bilesen-menu.png)
+
+![açılır seçim ve kaydırıcı](docs/ekran/bilesen-select.png)
+
+![sağ tık menüsü](docs/ekran/bilesen-sagtik.png)
+
+![modern görünümde menü](docs/ekran/bilesen-modern-menu2.png)
 
 ## Kararlar
 
@@ -265,6 +284,11 @@ ayrıldı; git geçmişinde duruyor.
 `input()` pencerede); `form()` anahtar kelimelerle yazılır, alanın türü değerden çıkar;
 `OptionList` bileşen katmanına açıldı.
 
+**Eksik bileşenler turu:** `Select`, `Tabs`, `Slider`, menü çubuğu ve sağ tık menüleri, ipuçları.
+Görünüşleri üç yeni belirteçle seçilir: sekmeler ters renkli (`tabs`), kaydırıcı çubuk (`slider`),
+seçim kutusu köşeli (`select`); modern görünümde alt çizgili, ince çizgi, alt çizgili. Menüler,
+açılır liste ve bağlam menüsü arka planı karartmayan ortak bir yüzen kutu (`Popup`) kullanır.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -283,6 +307,9 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `selection` | `inverse` tam satır ters renk · `pointer` `❯` + hafif zemin | `inverse` |
 | `radio` | `paren` `(•)` · `dot` `●` | `paren` |
 | `shadow` | `hard` kaydırılmış koyu blok · `soft` bulanık · `none` | `hard` |
+| `tabs` | `inverse` ters renkli · `folder` klasör sekmesi · `underline` alt çizgi · `bracket` `[ Genel ]` | `inverse` |
+| `slider` | `bar` ilerleme çubuğu gibi (`bar` belirtecini izler) · `line` ince iz, yuvarlak tutamak · `value` `◂ 60 ▸` | `bar` |
+| `select` | `bracket` `[ Artımlı ▾ ]` · `arrows` `◂ Artımlı ▸` · `underline` altı çizili | `bracket` |
 | `radius`, `panel_fill` | köşe yarıçapı; panellerin kart gibi dolu olup olmadığı | `0`, `False` |
 
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
@@ -325,6 +352,7 @@ python tests/test_textarea.py
 python tests/test_dialog_scroll.py
 python tests/test_flow.py
 python tests/test_settings.py
+python tests/test_components.py
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
@@ -332,12 +360,14 @@ sorar (Ctrl+O ile ağaçtan da seçilir), mod ve dosya türlerini seçtirir, kla
 kopyalamayı canlandırır (dosyalara dokunmaz), en büyük dosyaları tabloyla özetler. PowerShell'de
 terminal kipi: `$env:TERMIK_MODE="terminal"; termik akis`.
 
-Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`): `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
+Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`): menü çubuğu (`alt+d`, `f10`), `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
 thread'de taranır; kopyalama taklittir), `esc` iptal (onay ister), `f2` tema, `f4` yoğunluk, `tab`
 odak, `ctrl+q` çıkış (yedekleme sürüyorsa sorar). Palette "Hedef klasörü değiştir…" yazı soran bir
 diyalog açar; Notlar paneli çok satırlı bir yazı alanıdır.
 Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
-tık onu kaynak yapar, biten yedekleme geçmiş tablosuna eklenir. Sistem paneli demonun kendi CPU
+tık onu kaynak yapar, sağ tık menüsü kaynak ya da hedef yapar ve yolu panoya kopyalar. Biten yedekleme
+geçmiş tablosuna eklenir. Formda sıkıştırma düzeyi bir kaydırıcı ("Sıkıştır" kapalıyken devre dışı),
+zamanlama bir açılır seçimdir; günlük ve notlar sekmelerdedir, butonlarda ipucu vardır. Sistem paneli demonun kendi CPU
 kullanımını ve saniyede çizilen kare sayısını gösterir: boştayken ikisi de sıfıra yaklaşır.
 
 Testler pencere açmadan (SDL'in sahte sürücüsüyle) `app.run_test()` ve `Pilot` ile sürülür:
@@ -371,12 +401,13 @@ python -m twine upload dist/*
 | `termik/widgets/` | Hazır bileşenler |
 | `termik/palette.py`, `fuzzy.py` | Komut paleti (`CommandPalette`, `Command`); Türkçe gevşek bulanık arama |
 | `termik/dialog.py`, `clipboard.py` | Modal diyaloglar; sistem panosu (pencere yoksa uygulama içi yedek) |
+| `termik/popup.py`, `menu.py` | Yüzen kutu (`Popup`); menü çubuğu, açılır ve sağ tık menüleri |
 | `termik/events.py`, `keys.py`, `reactive.py`, `layout.py` | Mesajlar ve olaylar; tuş adları; `reactive`; boyut çözme ve dağıtma |
 | `termik/theme.py`, `markup.py`, `fonts.py`, `text.py`, `draw.py` | Tema ve biçim belirteçleri; markup ayrıştırma (pygame'siz, terminal kipi de kullanır); font yığını; yazı ölçme ve çizme; çizim ilkelleri (`Painter`) |
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 88 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (9) |
+| `tests/` | 98 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), ayarlar ve komut satırı (10) |
 
 ## Öğrendiklerimiz
 
@@ -413,8 +444,8 @@ python -m twine upload dist/*
 ## Sıradaki adımlar
 
 1. **PyPI'ye ilk yükleme** ve README'deki görsellerin PyPI'de de görünmesi için bir depo adresi.
-2. **Eksik bileşenler:** açılır seçim, sekmeler, kaydırıcı, menü çubuğu ve sağ tık menüsü, ipucu
-   baloncuğu, resim gösterme.
+2. **Kalan bileşenler:** resim gösterme, serbest çizim alanı (Canvas), sayı alanı (Spinbox),
+   bölünebilir paneller.
 3. **Birden çok pencere** (pygame-ce'nin `Window` sınıfıyla) ve sistemle bütünleşme: yerel dosya
    diyaloğu, dosya sürükleyip bırakma, pencere ikonu.
 4. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri.

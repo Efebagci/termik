@@ -27,6 +27,7 @@ IDLE = "[faint]●[/] [dim]başlamaya hazır[/]"
 HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 
 [bold]Genel[/]
+  alt+d    Dosya menüsü (alt+g Görünüm, alt+y Yardım) · f10 menü
   ctrl+p   komut paleti: bütün komutlar buradan aranır
   tab      sonraki alan · shift+tab önceki
   f2 / f4  tema / yoğunluk değiştir
@@ -40,14 +41,15 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 [bold]Dosya ağacı[/]
   ↑ ↓      gez · → aç · ← kapat ya da üste çık
   enter    klasörü kaynak yap (çift tık da olur)
+  sağ tık  kaynak ya da hedef yap, yolu panoya kopyala
 
 [bold]Geçmiş tablosu[/]
   Başlığa tıkla: o sütuna göre sırala, tekrar: tersine.
   Enter ya da çift tık satırı günlüğe yazar.
 
-[bold]Notlar[/]
-  Çok satırlı yazı alanı: ctrl+z geri al, ctrl+y yinele,
-  ctrl+a hepsini seç, ctrl+c/x/v pano.
+[bold]Günlük ve notlar[/]
+  ctrl+tab sekme değiştirir. Notlar çok satırlı bir yazı alanı:
+  ctrl+z geri al, ctrl+y yinele, ctrl+a hepsini seç, ctrl+c/x/v pano.
 
 [bold]Sistem paneli[/]
   Bu sürecin kendi CPU kullanımı ve saniyede çizilen kare
@@ -75,6 +77,32 @@ def scan(folder: str) -> tuple[int, int]:
     return count, size
 
 
+class FileTree(ui.DirectoryTree):
+    """Dosya ağacı; sağ tık menüsü klasörü kaynak ya da hedef yapar, yolu panoya kopyalar."""
+
+    def context_menu(self, event):
+        if event is not None:  # sağ tıklanan satıra geç
+            line = self._line_at(event.y)
+            if line is not None:
+                self.move_cursor(line)
+        node = self.cursor_node
+        if node is None or not node.data:
+            return None
+        path, app = node.data, self.app
+        folder = os.path.isdir(path)
+        return [ui.MenuItem("&Kaynak yap", lambda: app.use_source(path), disabled=not folder),
+                ui.MenuItem("&Hedef yap", lambda: app.use_target(path), disabled=not folder),
+                None,
+                ui.MenuItem("Yolu &panoya kopyala", lambda: app.copy_path(path))]
+
+
+class EventLog(ui.Log):
+    """Günlük; sağ tık menüsünden temizlenir."""
+
+    def context_menu(self, event):
+        return [ui.MenuItem("Günlüğü &temizle", self.clear)]
+
+
 def human(n: float) -> str:
     for unit in ("B", "KB", "MB", "GB"):
         if n < 1024 or unit == "GB":
@@ -99,9 +127,18 @@ class BackupApp(ui.App):
         self._frames_mark = 0
 
     def compose(self):
-        yield ui.Header("termik", "bileşen çekirdeği · demo")
+        yield ui.MenuBar(
+            ui.Menu("&Dosya", [ui.MenuItem("Yedeklemeyi &başlat", "start"), ui.MenuItem("İ&ptal", "cancel"), None,
+                               ui.MenuItem("&Hedef klasörü değiştir…", "change_target"), None,
+                               ui.MenuItem("Çı&k", "app.quit")]),
+            ui.Menu("&Görünüm", [ui.MenuItem("&Temayı değiştir", "next_theme"),
+                                 ui.MenuItem("&Yoğunluğu değiştir", "next_density"), None,
+                                 ui.MenuItem("&Komut paleti", "app.command_palette")]),
+            ui.Menu("&Yardım", [ui.MenuItem("&Yardım", "help")]),
+        )
+        yield ui.Header("termik", "bileşen katmanı · demo")
         with ui.Row(gap=1):
-            yield ui.Panel(ui.DirectoryTree(self.folder, id="tree"), title="Dosyalar", width=32, id="files")
+            yield ui.Panel(FileTree(self.folder, id="tree"), title="Dosyalar", width=32, id="files")
             with ui.Column(gap=0.5):
                 with ui.Panel(title="Yedekleme", info="[faint]tam yedek[/]", gap=0.5, id="form"):
                     yield ui.Input(str(self.folder), label="Kaynak klasör", id="src")
@@ -112,22 +149,35 @@ class BackupApp(ui.App):
                             yield ui.Label("[dim]Seçenekler[/]", width=12)
                             yield ui.Checkbox("Sıkıştır", True, id="zip")
                             yield ui.Checkbox("Şifrele", id="enc")
+                        with ui.Row(gap=1):
+                            yield ui.Label("[dim]Düzey[/]", width=11)
+                            yield ui.Slider(6, min=0, max=9, id="level",
+                                            tooltip="Sıkıştırma düzeyi: 0 en hızlısı, 9 en küçük dosyayı verir")
+                        with ui.Row(gap=1):
+                            yield ui.Label("[dim]Zamanlama[/]", width=11)
+                            yield ui.Select(["Elle", "Her gün 22:00", "Her hafta", "Her ay"], id="schedule")
                         yield ui.Static(IDLE, id="status")
                         yield ui.ProgressBar(id="bar")
                     with ui.Row(gap=2):
                         yield ui.Spacer()
-                        yield ui.Button("İptal", action="cancel")
-                        yield ui.Button("Başlat ⏎", action="start", variant="primary")
+                        yield ui.Button("İptal", action="cancel", tooltip="Süren yedeklemeyi durdurur (onay ister)")
+                        yield ui.Button("Başlat ⏎", action="start", variant="primary",
+                                        tooltip="Kaynak klasörü tarar, sonra kopyalamayı canlandırır")
                 yield ui.Panel(ui.Table(("", 2), ("Tarih", 12), ("Mod", "1fr"), ("Dosya", 6, "right"),
                                         ("Boyut", 9, "right"), ("Süre", 6, "right"), id="history"),
                                title="Geçmiş", info="[faint]başlığa tıkla: sırala[/]")
             with ui.Column(width=46, gap=0.5):
                 with ui.Panel(title="Sistem", info="[faint]bu süreç[/]"):
-                    yield ui.Sparkline(label="CPU", value_format="{:.0%}", max_value=1.0, id="cpu")
-                    yield ui.Sparkline(label="FPS", value_format="{:.0f}", color="accent", id="fps")
-                yield ui.Panel(ui.Log(timestamps=True, id="log"), title="Günlük")
-                yield ui.Panel(ui.TextArea(placeholder="notlar…", line_numbers=True, rows=6, id="notes"),
-                               title="Notlar", id="notes-panel")
+                    yield ui.Sparkline(label="CPU", value_format="{:.0%}", max_value=1.0, id="cpu",
+                                       tooltip="Bu sürecin işlemci kullanımı")
+                    yield ui.Sparkline(label="FPS", value_format="{:.0f}", color="accent", id="fps",
+                                       tooltip="Saniyede çizilen kare: ekran yalnızca bir şey değişince çizilir")
+                with ui.Panel(id="notes-panel"):
+                    with ui.Tabs(id="side"):
+                        with ui.Tab("Günlük"):
+                            yield EventLog(timestamps=True, id="log")
+                        with ui.Tab("Notlar"):
+                            yield ui.TextArea(placeholder="notlar…", line_numbers=True, rows=6, id="notes")
         yield ui.KeyBar()
         yield ui.StatusBar(mode="HAZIR", left="termik demo", id="statusbar")
 
@@ -263,10 +313,23 @@ class BackupApp(ui.App):
     def on_tree_node_selected(self, event: ui.Tree.NodeSelected) -> None:
         path = event.node.data
         if path and os.path.isdir(path):
-            src = self.query_one("#src", ui.Input)
-            src.value = path
-            src.cursor_position = len(path)
-            self.log.info(f"kaynak: [accent]{ui.escape(path)}[/]")
+            self.use_source(path)
+
+    def _set_input(self, selector: str, path: str, what: str) -> None:
+        field = self.query_one(selector, ui.Input)
+        field.value = path
+        field.cursor_position = len(path)
+        self.log.info(f"{what}: [accent]{ui.escape(path)}[/]")
+
+    def use_source(self, path: str) -> None:
+        self._set_input("#src", path, "kaynak")
+
+    def use_target(self, path: str) -> None:
+        self._set_input("#dst", path, "hedef")
+
+    def copy_path(self, path: str) -> None:
+        ui.clipboard.put_text(path)
+        self.notify("yol panoya kopyalandı", "ok")
 
     def on_table_row_selected(self, event: ui.Table.RowSelected) -> None:
         cells = event.table.get_row(event.key)
@@ -280,6 +343,11 @@ class BackupApp(ui.App):
 
     def on_checkbox_changed(self, event: ui.Checkbox.Changed) -> None:
         self.log.info(f"{event.checkbox.label}: {'açık' if event.value else 'kapalı'}")
+        if event.checkbox.id == "zip":  # sıkıştırma kapalıyken düzey seçilmez
+            self.query_one("#level", ui.Slider).disabled = not event.value
+
+    def on_select_changed(self, event: ui.Select.Changed) -> None:
+        self.log.info(f"zamanlama: {ui.escape(event.value)}")
 
     def on_text_area_changed(self, event: ui.TextArea.Changed) -> None:
         lines = event.text.count("\n") + 1
