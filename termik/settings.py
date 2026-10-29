@@ -11,6 +11,7 @@ Ayar dosyası TOML'dur. Yeri TERMIK_CONFIG ile değiştirilebilir; yoksa
     density = "dengeli"      # sıkı · dengeli · rahat · ferah
     mode = "auto"            # akış API'si: auto · window · terminal
     dialogs = "native"       # dosya diyalogları: native (işletim sisteminin) · builtin (termik'in)
+    fullscreen = false       # uygulamalar tam ekran açılsın (F11 her zaman açar/kapatır)
     font = "C:/Fonts/Iosevka.ttf"
     bar = "segment"          # herhangi bir biçim belirteci
     accent = "#ff8800"       # renkler de ezilebilir
@@ -40,12 +41,12 @@ DIALOGS = {"native": "native", "yerel": "native", "sistem": "native", "os": "nat
 
 # biçim belirteçleri ve varsayılanları; renklerin varsayılanı yok (temadan gelir)
 TOKENS: dict[str, Any] = {f.name: f.default for f in fields(Theme) if f.name != "name"}
-KEYS = ("theme", "look", "density", "mode", "dialogs", "font", "font_bold", *TOKENS)
+KEYS = ("theme", "look", "density", "mode", "dialogs", "fullscreen", "font", "font_bold", *TOKENS)
 
 _HEADER = """\
 # termik ayarları
 # Öncelik: koddaki değer > ortam değişkeni (TERMIK_THEME…) > bu dosya > varsayılan.
-# Ayarlanabilenler: theme, look, density, mode, dialogs, font, font_bold ve biçim belirteçleri
+# Ayarlanabilenler: theme, look, density, mode, dialogs, fullscreen, font, font_bold ve biçim belirteçleri
 # (title, focus, button, bar, selection, shadow, radio, tabs, slider, select, image, spin,
 # split, form_label, chart, radius, panel_fill, font_size, line_height, pad_x, pad_y) ile renkler (accent = "#ff8800" gibi).
 """
@@ -121,7 +122,7 @@ def _convert(key: str, raw: Any) -> Any:
         return path
     if key in _COLOR_FIELDS:
         return hex_color(str(raw))
-    default = TOKENS[key]
+    default = False if key == "fullscreen" else TOKENS[key]
     if isinstance(default, bool):
         if isinstance(raw, bool):
             return raw

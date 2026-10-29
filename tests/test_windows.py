@@ -408,6 +408,30 @@ def test_native_dialog_backend_and_fallback():
     run(main())
 
 
+def test_fullscreen_toggle_and_preference():
+    async def main():
+        app = Ana(fullscreen=True)
+        async with app.run_test() as pilot:
+            assert app.fullscreen
+            await pilot.press("f11")
+            assert not app.fullscreen
+            w = app.open_window(Ayarlar())
+            await pilot.pause()
+            await pilot.press("f11")  # kendi penceresi
+            assert w.fullscreen and not app.fullscreen
+            w.fullscreen = False
+            assert "Tam ekran" in [c.label for c in w._palette_commands()]
+            assert not app._errors
+        assert not Ana().fullscreen
+        import os
+        os.environ["TERMIK_FULLSCREEN"] = "evet"
+        try:
+            assert Ana().fullscreen and not Ana(fullscreen=False).fullscreen
+        finally:
+            del os.environ["TERMIK_FULLSCREEN"]
+    run(main())
+
+
 def test_demo_settings_window_drop_and_dialogs():
     from termik.demo import uygulama as demo
 

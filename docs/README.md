@@ -59,6 +59,8 @@ Merhaba().run()
 ## Sayfalar
 
 - **[Bileşen galerisi](bilesenler.md)**: her bileşenin görüntüsü ve onu üreten kod.
+- **[Rehber](rehber.md)**: baştan sona öğreten, ayrıntılı belge: zihinsel model, adım adım dersler,
+  sık hatalar, tam başvuru ve kod üreten dil modelleri (LLM) için kurallar.
 - **[Tarifler](tarifler.md)**: ayar formu, canlı grafik, uzun iş, dosya seçme ve bırakma, ikinci
   pencere, sınıfsız araç, testler.
 - **[Başvuru (README)](https://github.com/Efebagci/termik#readme)**: bütün kavramlar, seçenekler,

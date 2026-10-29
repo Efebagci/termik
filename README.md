@@ -7,7 +7,7 @@
 CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla. pygame-ce üzerinde çalışan bir Python
 arayüz kütüphanesi.
 
-**Belgeler:** [giriş](https://github.com/Efebagci/termik/tree/main/docs) · [bileşen galerisi](https://github.com/Efebagci/termik/blob/main/docs/bilesenler.md) · [tarifler](https://github.com/Efebagci/termik/blob/main/docs/tarifler.md) ·
+**Belgeler:** [giriş](https://github.com/Efebagci/termik/tree/main/docs) · [bileşen galerisi](https://github.com/Efebagci/termik/blob/main/docs/bilesenler.md) · [tarifler](https://github.com/Efebagci/termik/blob/main/docs/tarifler.md) · [rehber: baştan sona öğreten belge (insanlar ve LLM'ler için)](https://github.com/Efebagci/termik/blob/main/docs/rehber.md) ·
 [kaynak kod](https://github.com/Efebagci/termik)
 
 ![demo](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/demo-calisiyor.png)
@@ -375,6 +375,9 @@ class Uygulama(ui.App):
   pencere açık kalır, `async` olabilir. `close()` ise sormadan kapatır. Ana pencere kapanınca
   uygulama da kapanır. Eylem adlarında `window.` öneki bileşenin penceresini gösterir
   (`action="window.close"`); önceksiz adlar ek pencerede bulunamazsa uygulamada aranır.
+- **Tam ekran.** F11 her pencerede tam ekranı açar/kapatır; koddan `self.window.fullscreen = True`.
+  Açılışta tam ekran için `FULLSCREEN = True`, `App(fullscreen=True)` ya da `fullscreen = true` ayarı.
+  Masaüstü kipidir: ekran çözünürlüğü değişmez.
 - **Dosya diyalogları.** `await self.ask_open(…)`, `ask_open(multiple=True)`, `ask_save(name=…)`,
   `ask_folder()` `pathlib.Path` (vazgeçilirse `None`) döndürür. Varsayılan olarak işletim sisteminin
   diyaloğu açılır: Windows'ta Common Item Dialog, macOS'ta Finder diyaloğu, Linux'ta zenity ya da
@@ -552,13 +555,14 @@ look = "terminal"
 density = "dengeli"
 mode = "auto"              # akış API'si: auto · window · terminal
 dialogs = "native"         # dosya diyalogları: native (işletim sisteminin) · builtin (termik'in)
+fullscreen = false         # uygulamalar tam ekran açılsın (F11 her zaman açar/kapatır)
 font = "C:/Fonts/Iosevka.ttf"
 bar = "segment"            # yukarıdaki bütün biçim belirteçleri
 accent = "#ff8800"         # renkler de ezilebilir
 ```
 
 Ortam değişkenleri aynı adların `TERMIK_` önekli büyük harflisidir: `TERMIK_THEME=neon`,
-`TERMIK_DENSITY=ferah`, `TERMIK_BAR=ascii`, `TERMIK_MODE=terminal`, `TERMIK_DIALOGS=builtin`,
+`TERMIK_DENSITY=ferah`, `TERMIK_BAR=ascii`, `TERMIK_MODE=terminal`, `TERMIK_DIALOGS=builtin`, `TERMIK_FULLSCREEN=evet`,
 `TERMIK_FONT=…`. Geçersiz bir
 değer programı durdurmaz: bir kez uyarı yazılır, değer yok sayılır. Kodda verilen yanlış bir ad
 (`App(theme="yok")`) ise `ValueError` verir. Akış API'sinde `termik.restyle(theme="neon")`
@@ -632,7 +636,7 @@ python -m twine upload dist/*
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `yeni`, `çalıştır`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
 | `termik/plot.py` | Grafik verisi (pygame'siz): seriler, eksen adımları, Türkçe sayı biçimi, terminal için blok grafik |
-| `docs/` | Belgeler (GitHub'da okunur): giriş (`README.md`), bileşen galerisi (`galeri.py` üretir), tarifler; README görselleri |
+| `docs/` | Belgeler (GitHub'da okunur): giriş (`README.md`), bileşen galerisi (`galeri.py` üretir), tarifler, öğretici rehber (`rehber.md`); README görselleri |
 | `termik/dev.py` | Proje iskeletleri (`termik yeni`) ve kaydettikçe yeniden başlatan izleyici (`termik çalıştır --izle`) |
 | `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |

@@ -104,6 +104,7 @@ class Window(Widget):
     PADDING = (0.5, 2)   # ana ekranın kenar boşluğu: satır, karakter
     GAP = 0.5            # ana ekrandaki bileşenler arası boşluk, satır
     RESIZABLE = True
+    FULLSCREEN = False   # açılışta tam ekran (F11 açar/kapatır)
     ICON: str | Path | pygame.Surface | None = None  # None: temanın renginde komut istemi simgesi
 
     def __init__(self, *, title: str | None = None, size: tuple[int, int] | None = None,
@@ -134,6 +135,7 @@ class Window(Widget):
         self._tip_pos = (0, 0)
         self._drop: list | None = None  # DROPBEGIN ile DROPCOMPLETE arasında bırakılanlar
         self._compose_fn: Callable | None = None  # @app.compose ile verilen arayüz fonksiyonu
+        self._fullscreen = self.FULLSCREEN
 
     def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
@@ -153,6 +155,34 @@ class Window(Widget):
         self._title = value
         if self._native is not None:
             self._native.title = value
+
+    @property
+    def fullscreen(self) -> bool:
+        """Pencere tam ekran mı. Atamak değiştirir: `self.window.fullscreen = True`."""
+        return self._fullscreen
+
+    @fullscreen.setter
+    def fullscreen(self, value: bool) -> None:
+        self._fullscreen = bool(value)
+        self._apply_fullscreen()
+
+    def _apply_fullscreen(self) -> None:
+        """Masaüstü çözünürlüğünde kenarsız tam ekran (ekran kipi değişmez, Alt+Tab hızlı kalır)."""
+        if self._native is None:
+            return
+        try:
+            if self._fullscreen:
+                self._native.set_fullscreen(desktop=True)
+            else:
+                self._native.set_windowed()
+        except pygame.error:  # sahte sürücü ya da desteklemeyen sistem: pencerede kal
+            pass
+        self._invalidate(True)
+
+    @action("Tam ekran", key="f11", show=False)
+    def toggle_fullscreen(self) -> None:
+        """Tam ekranı aç ya da kapat."""
+        self.fullscreen = not self._fullscreen
 
     @property
     def native(self) -> pygame.Window | None:
@@ -228,6 +258,8 @@ class Window(Widget):
         self._native = pygame.Window(self._title, pixels, position, **flags)
         self._shown = False
         self._apply_icon()
+        if self._fullscreen:
+            self._apply_fullscreen()
         if self.modal and owner is not None and owner._native is not None:
             system.set_owner(self._native, owner._native)
         main = _MainScreen(self, padding=self.PADDING, gap=self.GAP)
@@ -826,7 +858,8 @@ class App(Window):
 
     def __init__(self, *, theme: str | None = None, look: str | None = None, density: str | None = None,
                  title: str | None = None, icon: str | Path | pygame.Surface | None = None,
-                 dialogs: str | None = None, save_state: bool | None = None, **tokens) -> None:
+                 dialogs: str | None = None, save_state: bool | None = None, fullscreen: bool | None = None,
+                 **tokens) -> None:
         """theme, look, density, dialogs ve biçim belirteçleri verilmezse kullanıcının tercihleri (ayar
         dosyası, TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa okyanus · terminal · rahat
         ve işletim sisteminin dosya diyalogları."""
@@ -838,6 +871,8 @@ class App(Window):
         self._density = density or prefs.get("density", "rahat")
         self._tokens = {**prefs["tokens"], **tokens}
         self.dialogs = dialogs or prefs.get("dialogs", "native")  # dosya diyalogları: native · builtin
+        if fullscreen is not None or "fullscreen" in prefs:
+            self._fullscreen = fullscreen if fullscreen is not None else prefs["fullscreen"]
         self.save_state = self.SAVE_STATE if save_state is None else save_state
         self._state_forced = save_state is True  # run_test() altında yalnızca açıkça istenirse
         self._painter: Painter | None = None
