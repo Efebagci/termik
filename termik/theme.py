@@ -73,7 +73,7 @@ class Theme:
     panel_fill: bool = False    # paneller zeminden ayrı renkte mi (kart görünümü)
     title: str = "inverse"      # inverse ters renkli etiket · inline ┌─ Başlık ─┐ · tab ┤ Başlık ├
     focus: str = "color"        # color: odakta vurgu rengi · double: odakta çift çizgi
-    button: str = "bracket"     # bracket [ Tamam ] · angle < Tamam > · solid dolu blok · pill hap
+    button: str = "solid"       # bracket [ Tamam ] · tinted zeminli [ Tamam ] · angle < Tamam > · solid dolu blok · boxed çerçeveli kutu · pill hap
     bar: str = "block"          # block █▊░ · segment ▰▱ · line ━━─ · ascii [##--]
     selection: str = "inverse"  # inverse: tam satır ters renk · pointer: ❯ + hafif zemin
     shadow: str = "hard"        # hard: kaydırılmış koyu blok · soft: bulanık · none
@@ -144,7 +144,7 @@ THEMES: dict[str, Theme] = {t.name: t for t in (
 
 # Hazır biçim kümeleri: herhangi bir renk temasıyla birleştirilebilir
 LOOKS: dict[str, dict] = {
-    "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="bracket",
+    "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="solid",
                      bar="block", selection="inverse", shadow="hard", radio="paren",
                      tabs="inverse", slider="bar", select="bracket", image="smooth", spin="bracket",
                      split="line"),
@@ -167,7 +167,7 @@ DENSITIES: dict[str, dict] = {
 CHOICES: dict[str, tuple[str, ...]] = {
     "title": ("inverse", "inline", "tab"),
     "focus": ("color", "double"),
-    "button": ("bracket", "angle", "solid", "pill"),
+    "button": ("bracket", "tinted", "angle", "solid", "boxed", "pill"),
     "bar": ("block", "segment", "line", "ascii"),
     "selection": ("inverse", "pointer"),
     "shadow": ("hard", "soft", "none"),

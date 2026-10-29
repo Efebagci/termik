@@ -844,7 +844,7 @@ olmayan bir dosyayı gösterebilir; durum kaydı `run_test` altında yalnızca a
 Görünüş üç bağımsız eksende seçilir:
 
 1. **Renk teması** (`theme`): `okyanus` (varsayılan), `günbatımı`, `orman`, `neon`, `mono`, `lavanta`.
-2. **Görünüm kümesi** (`look`): `terminal` (keskin köşe, köşeli butonlar) ya da `modern` (yuvarlak,
+2. **Görünüm kümesi** (`look`): `terminal` (keskin köşe, dolu kutu butonlar) ya da `modern` (yuvarlak,
    kart zeminli).
 3. **Yoğunluk** (`density`): `sıkı`, `dengeli`, `rahat` (varsayılan), `ferah`.
 
@@ -854,7 +854,7 @@ Bunların üstüne tek tek **biçim belirteçleri** ezilebilir:
 |---|---|
 | `title` | `inverse` · `inline` · `tab` |
 | `focus` | `color` · `double` |
-| `button` | `bracket` · `angle` · `solid` · `pill` |
+| `button` | `solid` (varsayılan; butonlar yazıdan ve köşeli form alanlarından ayrılsın diye) · `tinted` · `bracket` · `boxed` · `angle` · `pill` |
 | `bar` | `block` · `segment` · `line` · `ascii` |
 | `selection` | `inverse` · `pointer` |
 | `shadow` | `hard` · `soft` · `none` |

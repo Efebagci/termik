@@ -403,7 +403,7 @@ class Uygulama(ui.App):
 | Bileşen | İş |
 |---|---|
 | `Static`, `Label` | Markup yazı; `Static` genişliğe göre kaydırır, `Label` `…` ile kısalır |
-| `Button` | `[ Tamam ]`; ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık; `disabled=True` soluk çizilir (vurgu dolgusu yok) ve basılmaz |
+| `Button` | Dolu kutu (`button` belirteciyle `[ Tamam ]` ya da çerçeveli de olur); ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık; `disabled=True` soluk çizilir (vurgu dolgusu yok) ve basılmaz |
 | `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
@@ -521,7 +521,7 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `pad_x`, `pad_y` | panel iç boşluğu: karakter / satır cinsinden | `1.75`, `0.65` |
 | `title` | `inverse` ters renkli etiket · `inline` `┌─ Başlık ─┐` · `tab` `┤ Başlık ├` | `inverse` |
 | `focus` | `color` vurgu rengi · `double` odakta çift çizgi | `color` |
-| `button` | `bracket` `[ Tamam ]` · `angle` `< Tamam >` · `solid` dolu blok · `pill` hap | `bracket` |
+| `button` | `solid` dolu kutu · `tinted` zeminli `[ Tamam ]` · `bracket` `[ Tamam ]` · `boxed` çerçeveli kutu · `angle` `< Tamam >` · `pill` hap | `solid` (modern: `pill`) |
 | `bar` | `block` `█▊░` · `segment` `▰▱` · `line` `━` · `ascii` `[##--]` | `block` |
 | `selection` | `inverse` tam satır ters renk · `pointer` `❯` + hafif zemin | `inverse` |
 | `radio` | `paren` `(•)` · `dot` `●` | `paren` |

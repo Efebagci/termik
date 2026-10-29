@@ -22,7 +22,7 @@ from .theme import Color, Theme, mix
 SS = 4  # köşe sprite'ları için supersampling katsayısı
 RectLike = pygame.Rect | tuple[int, int, int, int]
 
-_BRACKETS = {"bracket": ("[ ", " ]"), "angle": ("< ", " >")}
+_BRACKETS = {"bracket": ("[ ", " ]"), "tinted": ("[ ", " ]"), "angle": ("< ", " >")}
 
 
 @lru_cache(maxsize=256)
@@ -308,19 +308,35 @@ class Painter:
         if th.button in _BRACKETS:
             a, b = _BRACKETS[th.button]
             return self.text.width(a + label + b, st), self.row
-        return self.text.width(label, st) + self.ch * 4, self.row + (6 if th.button == "pill" else 2)
+        return self.text.width(label, st) + self.ch * 4, self.row + (6 if th.button in ("pill", "boxed") else 2)
 
     def button(self, x: int, y: int, label: str, *, primary: bool = False, hot: bool = False,
                disabled: bool = False) -> pygame.Rect:
         """Buton çiz (theme.button), kapladığı alanı döndür. label düz yazıdır, markup değil.
 
         Köşeli/açılı butonlarda birincil buton hep ters renktedir (Enter'ın varsayılanı); ikincil
-        buton sade yazıdır ve üstüne gelince ters renge döner. disabled=True soluk çizer: vurgu
+        buton sade yazıdır ve üstüne gelince ters renge döner; tinted aynısını hafif bir zeminle çizer,
+        boxed ince çerçeveli kutu çizer. disabled=True soluk çizer: vurgu
         dolgusu ve üstüne gelme vurgusu olmaz, yazı ve çerçeve sönük renktedir.
         """
         th = self.theme
         w, h = self.button_size(label, primary)
         rect = pygame.Rect(x, y, w, h)
+        if th.button == "tinted":  # köşeli ama zeminli: yazıyla karışmasın
+            self.surface.fill(mix(th.bg, th.raised, 0.5 if disabled else 1.0), rect)
+        if th.button == "boxed":  # ince çerçeveli kutu
+            if disabled:
+                color, fg = mix(th.border, th.bg, 0.35), th.faint
+            elif primary:
+                color, fg = th.accent, th.accent
+            else:
+                color, fg = (th.text if hot else th.border), th.text
+            if hot and not disabled:
+                self.round_rect(rect, mix(th.bg, th.raised, 0.8))
+            self.outline(rect, color, width=2 if primary and not disabled else 1)
+            st = Style(bold=primary)
+            self.text.draw(self.surface, x + (w - self.text.width(label, st)) // 2, y, label, st, fg, center_in=h)
+            return rect
         if disabled:
             edge = mix(th.faint, th.bg, 0.45)
             if th.button in _BRACKETS:
