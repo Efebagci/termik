@@ -6,9 +6,10 @@ import re
 from itertools import count
 from typing import Any
 
+from ..draw import Painter
 from ..events import Click, Message, MouseMove, MouseScroll
 from ..fuzzy import fold
-from ..layout import AUTO, Size, distribute, parse_size
+from ..layout import AUTO, Size, SizeSpec, distribute, parse_size
 from ..text import Style, plain_text
 from ..theme import mix
 from ..widget import Widget, action
@@ -71,7 +72,7 @@ class Table(Widget):
 
     # ── veri ──────────────────────────────────────────────
 
-    def add_column(self, label: str, width=None, align: str = "left") -> None:
+    def add_column(self, label: str, width: SizeSpec = None, align: str = "left") -> None:
         """width: karakter, "1fr", "20%" ya da None (içeriğine göre); align: left · right · center."""
         self.columns.append(_Column(label, parse_size(width) if width is not None else AUTO, align))
         self._natural = None
@@ -152,7 +153,7 @@ class Table(Widget):
         gap = p.ch * self.GAP * max(0, len(self.columns) - 1)
         return distribute([col.width for col in self.columns], self._natural, max(0, width - gap), p.ch)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return sum(self._widths(p, width)), self._header_h(p) + max(1, len(self.rows)) * p.row
 
     def _cell(self, p, markup, x: int, w: int, align: str, y: int) -> None:
@@ -164,7 +165,7 @@ class Table(Widget):
         else:
             p.write(x, y, spans)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         total = len(self.rows)

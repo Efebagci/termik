@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from ..draw import Painter
 from ..events import Message, MouseDown, MouseMove, MouseScroll
 from ..reactive import reactive
 from ..text import Style
@@ -26,6 +27,7 @@ class Slider(Widget):
     default_height = "auto"
     can_focus = True
     cursor = "hand"
+    bind_value = "value"
     value = reactive(0)
 
     class Changed(Message):
@@ -64,6 +66,7 @@ class Slider(Widget):
 
     def watch_value(self, value: float) -> None:
         self.post_message(Slider.Changed(self, value))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, value)
 
@@ -72,10 +75,10 @@ class Slider(Widget):
     def _value_width(self, p) -> int:
         return max(p.text.width(self.format.format(v), _BOLD) for v in (self.minimum, self.maximum))
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return p.ch * 24, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         focused = self.has_focus

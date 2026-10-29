@@ -6,13 +6,15 @@ import os
 
 import pygame
 
+from ..draw import Painter
 from ..markup import escape
 from ..widget import Widget
 
 FITS = ("contain", "cover", "stretch", "none")
+ImageSource = str | os.PathLike | pygame.Surface  # resim dosyası yolu ya da hazır Surface
 
 
-def load_image(source) -> pygame.Surface:
+def load_image(source: ImageSource) -> pygame.Surface:
     """Dosya yolu ya da Surface → ölçeklenebilir (24/32 bit) Surface."""
     image = source if isinstance(source, pygame.Surface) else pygame.image.load(os.fspath(source))
     if image.get_bitsize() not in (24, 32):  # smoothscale 24/32 bit ister (paletli PNG, GIF)
@@ -41,7 +43,7 @@ class Image(Widget):
     default_width = "auto"
     default_height = "auto"
 
-    def __init__(self, source=None, *, fit: str = "contain", caption: str | None = None, frame: bool = True,
+    def __init__(self, source: ImageSource | None = None, *, fit: str = "contain", caption: str | None = None, frame: bool = True,
                  placeholder: str = "resim yok", **kwargs) -> None:
         if fit not in FITS:
             raise ValueError(f"Image: fit {', '.join(FITS)} olabilir, {fit!r} geldi")
@@ -53,11 +55,11 @@ class Image(Widget):
         self.source = source
 
     @property
-    def source(self):
+    def source(self) -> ImageSource | None:
         return self._source
 
     @source.setter
-    def source(self, value) -> None:
+    def source(self, value: ImageSource | None) -> None:
         self._source = value
         self._image, self._error, self._cache = None, None, None
         if value is not None:
@@ -77,12 +79,12 @@ class Image(Widget):
     def _scale(self) -> float:
         return self._app._scale if self._app is not None else 1.0
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         t, r, b, l = super().chrome(p)
         f = 1 if self.frame else 0
         return t + f, r + f, b + f + (p.row if self.caption else 0), l + f
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         if self._image is None:
             return min(width, p.ch * 24), p.row * 3
         k = self._scale()
@@ -134,7 +136,7 @@ class Image(Widget):
         self._cache = (key, out)
         return out
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         if self.frame:

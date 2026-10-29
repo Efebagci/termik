@@ -6,6 +6,7 @@ from typing import Callable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Key, Message, MouseMove
 from ..reactive import reactive
 from ..text import Style
@@ -94,11 +95,11 @@ class Tabs(Widget):
         """Başlık şeridinin yüksekliği: klasör kipinde üstte yarım satır çerçeve payı, altta ayraç."""
         return (p.row // 2 if p.theme.tabs == "folder" else 0) + p.row + p.row // 3
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         t, r, b, l = super().chrome(p)
         return t + self._header(p), r, b, l
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         style = th.tabs
         r = self.region

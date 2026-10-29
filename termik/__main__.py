@@ -1,10 +1,12 @@
-"""termik komut satırı: örnekleri açar, ayarları düzenler.
+"""termik komut satırı: örnekleri açar, proje iskeleti kurar, ayarları düzenler.
 
-    termik demo [klasör]   bileşen katmanı demosu: çok panelli bir uygulama
-    termik akis            akış API'si örneği: script'e birkaç satırla pencere
-    termik ayarlar         görünüm, kip ve dosya diyaloğu tercihlerini düzenle
-    termik ayarlar --yol   ayar dosyasının yerini yaz
-    termik --version       sürümü yaz
+    termik demo [klasör]               bileşen katmanı demosu: çok panelli bir uygulama
+    termik akis                        akış API'si örneği: script'e birkaç satırla pencere
+    termik yeni AD [--tur TÜR]         proje iskeleti: uygulama (varsayılan) · arac · betik
+    termik çalıştır DOSYA.py [--izle]  çalıştır; --izle kaydettikçe yeniden açar
+    termik ayarlar                     görünüm, kip ve dosya diyaloğu tercihlerini düzenle
+    termik ayarlar --yol               ayar dosyasının yerini yaz
+    termik --version                   sürümü yaz
 
 `python -m termik …` aynı işi görür.
 """
@@ -60,6 +62,43 @@ def edit_settings() -> None:
         termik.warn("Kaydedilmedi; hiçbir şey değişmedi.")
 
 
+def _new(args: list[str]) -> int:
+    from . import dev
+
+    kind = "uygulama"
+    if "--tur" in args:
+        i = args.index("--tur")
+        kind = args[i + 1] if i + 1 < len(args) else ""
+        args = args[:i] + args[i + 2:]
+    if len(args) != 1 or kind not in dev.KINDS:
+        print(f"kullanım: termik yeni AD [--tur {' | '.join(dev.KINDS)}]", file=sys.stderr)
+        return 2
+    try:
+        files = dev.create(args[0], kind)
+    except FileExistsError as exc:
+        print(f"termik: {exc}", file=sys.stderr)
+        return 1
+    main_file = files[0]
+    print(f"✓ {main_file.parent} oluşturuldu:")
+    for path in files:
+        print(f"    {path}")
+    print(f"Çalıştırmak için:  termik çalıştır {main_file} --izle")
+    if len(files) > 1:
+        print(f"Testler için:      python {files[1]}")
+    return 0
+
+
+def _run(args: list[str]) -> int:
+    from . import dev
+
+    watch = "--izle" in args
+    args = [a for a in args if a != "--izle"]
+    if not args:
+        print("kullanım: termik çalıştır DOSYA.py [--izle] [argümanlar…]", file=sys.stderr)
+        return 2
+    return dev.run(args[0], args[1:], watch=watch)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else list(argv)
     command, rest = (args[0], args[1:]) if args else ("", [])
@@ -77,6 +116,10 @@ def main(argv: list[str] | None = None) -> int:
         from .demo import akis
         akis.main()
         return 0
+    if command in ("yeni", "new"):
+        return _new(rest)
+    if command in ("çalıştır", "calistir", "run"):
+        return _run(rest)
     if command == "ayarlar":
         if "--yol" in rest:
             print(settings.config_path())

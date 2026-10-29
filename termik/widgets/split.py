@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Sequence
+
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Message, MouseDown, MouseMove
-from ..layout import distribute, parse_size
+from ..layout import SizeSpec, distribute, parse_size
 from ..theme import mix
 from ..widget import Widget, action
 
@@ -35,7 +38,7 @@ class Split(Widget):
             super().__init__()
             self.split, self.fractions = split, fractions
 
-    def __init__(self, *children: Widget, direction: str = "row", sizes=None, min_size: float | None = None,
+    def __init__(self, *children: Widget, direction: str = "row", sizes: Sequence[SizeSpec] | None = None, min_size: float | None = None,
                  **kwargs) -> None:
         if direction not in ("row", "column"):
             raise ValueError("Split: direction 'row' ya da 'column' olmalı")
@@ -109,7 +112,7 @@ class Split(Widget):
                 sizes[j] -= need
         return sizes
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         kids = self._kids()
         self._seps = []
         if not kids:
@@ -213,7 +216,7 @@ class Split(Widget):
 
     # ── çizim ─────────────────────────────────────────────
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         row = self.direction == "row"
         dragging = self._drag is not None and self.window._pressed is self

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pygame
 
+from ..draw import Painter
 from ..reactive import reactive
 from ..theme import mix
 from ..widget import Widget
@@ -34,7 +35,7 @@ class Panel(Widget):
         """Çizginin üstüne oturan yazının yarı yüksekliği: çerçeve bu kadar içeriden başlar."""
         return p.text.height // 2 + 1
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         px, py = p.pad
         t, r, b, l = super().chrome(p)
         half = self._half(p)
@@ -49,6 +50,6 @@ class Panel(Widget):
     def child_clip(self) -> pygame.Rect:
         return self.frame.inflate(-2, -2)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         fill = mix(p.theme.bg, p.theme.raised, 0.45) if self.floating else True
         p.frame(self.frame, self.title, focused=self.focus_within, info=self.info, footer=self.footer, fill=fill)

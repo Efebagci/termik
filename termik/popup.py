@@ -11,6 +11,7 @@ from typing import Iterable
 
 import pygame
 
+from .draw import Painter
 from .events import MouseDown
 from .theme import mix
 from .widget import Screen, Widget, action
@@ -22,11 +23,11 @@ class PopupBox(Widget):
     def __init__(self, *children: Widget, **kwargs) -> None:
         super().__init__(*children, padding=(0.25, 0.5), **kwargs)
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         t, r, b, l = super().chrome(p)
         return t + 1, r + 1, b + 1, l + 1  # çerçeve çizgisi
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         p.round_rect(self.region, mix(th.bg, th.raised, 0.45))
         p.outline(self.region, th.accent)
@@ -48,11 +49,11 @@ class Popup(Screen):
     def compose_body(self) -> Iterable[Widget]:
         return ()
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         self.box = PopupBox(*self.compose_body())
         yield self.box
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         r = self.region
         room = r.w - p.ch * 2
         width = min(room, max(self.min_width, self.box.natural_size(p, room)[0]))
@@ -65,7 +66,7 @@ class Popup(Screen):
         y = max(r.y, min(y, r.bottom - height))
         self.box._layout(p, pygame.Rect(x, y, width, height))
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         p.shadow(self.box.region)
 
     def on_mouse_down(self, event: MouseDown) -> None:

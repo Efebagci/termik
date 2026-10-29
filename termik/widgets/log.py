@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 
+from ..draw import Painter
 from ..events import MouseScroll
 from ..widget import Widget, action
 
@@ -67,7 +68,7 @@ class Log(Widget):
     def _clamp(self) -> None:
         self._back = max(0, min(self._back, len(self.lines) - self._visible))
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         self._visible = max(1, c.h // p.row)
         self._clamp()

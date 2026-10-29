@@ -20,7 +20,8 @@ import time
 from ..fuzzy import fold, match
 from ..markup import Span, escape, parse_markup, plain_text
 from ..theme import Color, Theme
-from .common import LABEL_CAP, SPINNER, STATE_ICONS, amount, counts, display_width, duration
+from .common import (LABEL_CAP, SPINNER, STATE_ICONS, Shown, amount, counts, display_width, duration,
+                     widget_lines)
 
 
 # ── ANSI ──────────────────────────────────────────────────
@@ -256,6 +257,11 @@ class TerminalBackend:
 
     def table(self, lines: list[str]) -> None:
         self.write("".join(line + "\n" for line in lines))
+
+    def show(self, widget) -> Shown:
+        """Terminalde bileşen çizilemez: o anki hali yazıya dökülür; tutamak bileşeni doğrudan değiştirir."""
+        self.write("".join(line + "\n" for line in widget_lines(widget)))
+        return Shown(lambda fn, *args, **kwargs: fn(*args, **kwargs), widget)
 
     def prompt(self, what: str, label: str, **spec) -> _TermPrompt | _TermForm:
         if what == "form":

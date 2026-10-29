@@ -31,6 +31,7 @@ from typing import Any, Callable, Iterable
 import pygame
 
 from . import keys, settings, system
+from ._util import call_flexible
 from .draw import Painter
 from .events import (Blur, Click, Drop, Focus, Key, MouseDown, MouseEnter, MouseLeave, MouseMove,
                      MouseScroll, MouseUp, TextInput)
@@ -130,6 +131,14 @@ class Window(Widget):
         self._tip_timer: Timer | None = None
         self._tip_pos = (0, 0)
         self._drop: list | None = None  # DROPBEGIN ile DROPCOMPLETE arasında bırakılanlar
+        self._compose_fn: Callable | None = None  # @app.compose ile verilen arayüz fonksiyonu
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+        binders = self.__dict__.get("_binders")  # bind= ile bağlı alanlar: düz öznitelik de iki yönlü
+        if binders and name in binders:
+            for widget in list(binders[name]):
+                widget._bind_pull(value)
 
     # ── pencere ───────────────────────────────────────────
 
@@ -201,12 +210,16 @@ class Window(Widget):
         self.open_window(window, modal=modal, callback=lambda result: future.done() or future.set_result(result))
         return await future
 
-    def _create(self, app: App, size: tuple[int, int], owner: Window | None = None) -> None:
-        """İşletim sistemi penceresini aç (ilk kare çizilene kadar gizli), ana ekranı kur ve bağla."""
+    def _create(self, app: App, size: tuple[int, int], owner: Window | None = None,
+                place: tuple[int, int, int, int] | None = None) -> None:
+        """İşletim sistemi penceresini aç (ilk kare çizilene kadar gizli), ana ekranı kur ve bağla.
+        place verilirse (x, y, genişlik, yükseklik; piksel) pencere tam oraya açılır."""
         self._app = app
         pixels = (round(size[0] * app._scale), round(size[1] * app._scale))
         position = pygame.WINDOWPOS_CENTERED
-        if owner is not None and owner._native is not None:  # açanın ortasına
+        if place is not None:
+            position, pixels = place[:2], place[2:]
+        elif owner is not None and owner._native is not None:  # açanın ortasına
             (ox, oy), (ow, oh) = owner._native.position, owner._native.size
             position = (ox + (ow - pixels[0]) // 2, oy + (oh - pixels[1]) // 2)
         flags = {} if app._headless else {"resizable": self.RESIZABLE, "hidden": True}
@@ -224,6 +237,14 @@ class Window(Widget):
         if hook is not None:
             self._call(hook)
         self._layout_all()
+
+    def compose(self, fn: Callable | None = None):
+        """Arayüzü kur. Sınıf yazmadan da olur: `@app.compose` ile süslenen fonksiyon (argümansız ya
+        da pencereyi alan) bileşenleri üretir."""
+        if fn is not None:
+            self._compose_fn = fn
+            return fn
+        return call_flexible(self._compose_fn, self) if self._compose_fn is not None else ()
 
     # ── dosya diyalogları ─────────────────────────────────
 
@@ -308,6 +329,8 @@ class Window(Widget):
 
         attach(root)
         for widget in order:
+            if widget.bind:  # bağlamayı on_mount'tan önce kur: alan değeri hazır olsun
+                widget._bind_attach()
             widget._mounted = True
             hook = getattr(widget, "on_mount", None)
             if hook is not None:
@@ -324,6 +347,8 @@ class Window(Widget):
                 if hook is not None:
                     widget._call(hook)
             widget._mounted = False
+            if widget._bound_to is not None:
+                widget._bind_detach()
             if self.focused is widget:
                 self.focused = None
             if self._hover is widget:
@@ -379,7 +404,7 @@ class Window(Widget):
         for node in self._focus_path():
             if node.disabled:
                 continue
-            for info in type(node)._actions.values():
+            for info in node._actions_map().values():
                 if not info.show or not info.keys or info.keys[0] in seen:
                     continue
                 seen.update(info.keys)
@@ -408,7 +433,7 @@ class Window(Widget):
         for node in self._focus_path():
             if node.disabled:
                 continue
-            for info in type(node)._actions.values():
+            for info in node._actions_map().values():
                 if info.palette and info.name not in seen:
                     seen.add(info.name)
                     commands.append(Command(info.label, getattr(node, info.name), info.keys[0] if info.keys else None))
@@ -735,6 +760,33 @@ class Window(Widget):
         for i, line in enumerate(lines):
             f.draw(p.surface, x + p.ch, y + p.row // 4 + i * f.height, line, color=th.text)
 
+    # ── sınıfsız kullanım ─────────────────────────────────
+    # (sınıf gövdesinin sonunda: yukarıdaki @action süslemeleri modüldeki action'ı kullanmalı)
+
+    def action(self, label: str | Callable | None = None, key: str | Iterable[str] | None = None, *,
+               hint: str | None = None, show: bool = True, palette: bool = True, priority: bool = False):
+        """Sınıf yazmadan eylem: `@app.action("Dönüştür", key="f5")` ile süslenen fonksiyon (argümansız
+        ya da pencereyi alan) tuşa bağlanır, kısayol satırında ve palette görünür, butona verilir."""
+        def decorate(fn: Callable) -> Callable:
+            self.add_action(fn.__name__, fn, label if isinstance(label, str) else fn.__name__, key=key,
+                            hint=hint, show=show, palette=palette, priority=priority)
+            return fn
+
+        if callable(label):  # parantezsiz: @app.action
+            return decorate(label)
+        return decorate
+
+    def on(self, message: type | str):
+        """Sınıf yazmadan mesaj yakala: `@app.on(ui.Button.Pressed)`, `@app.on("mount")`. Fonksiyon
+        mesajı (ya da hiçbir şeyi) alır."""
+        name = message if isinstance(message, str) else message.handler_name
+        name = name if name.startswith("on_") else f"on_{name}"
+
+        def decorate(fn: Callable) -> Callable:
+            setattr(self, name, lambda *args: call_flexible(fn, *args))
+            return fn
+        return decorate
+
     def _paint_toasts(self, p: Painter) -> None:
         th = p.theme
         width = p.surface.get_width()
@@ -961,6 +1013,10 @@ class App(Window):
                 window._hide_tip()
             elif t in (pygame.WINDOWRESIZED, pygame.WINDOWSIZECHANGED):
                 window._invalidate(True)
+                if window is self:
+                    self._save_place()
+            elif t == pygame.WINDOWMOVED and window is self:
+                self._save_place()
             elif t == pygame.WINDOWEXPOSED:
                 window._invalidate(False)
             elif t in _DROP:
@@ -1089,7 +1145,18 @@ class App(Window):
         self._windows = [self]
         self._focus_window = self
         self._running = True
-        self._create(self, size or self.SIZE)
+        self._create(self, size or self.SIZE, place=None if headless else _saved_place())
+
+    def _save_place(self) -> None:
+        """`termik çalıştır --izle` altında pencerenin yerini ve boyutunu yaz: yeniden açılınca aynı yerde."""
+        path = os.environ.get("TERMIK_IZLE_KONUM")
+        if path and self._native is not None and not self._headless:
+            try:
+                (x, y), (w, h) = self._native.position, self._native.size
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(f"{x} {y} {w} {h}")
+            except (OSError, pygame.error):
+                pass
 
     def _shutdown(self) -> None:
         self._running = False
@@ -1121,6 +1188,19 @@ class App(Window):
         wait = 1 / 60 if now < self._active_until else 1 / 30
         due = min((t.due for t in self._all_timers if t.active), default=now + wait)
         return max(0.001, min(wait, due - now))
+
+
+def _saved_place() -> tuple[int, int, int, int] | None:
+    """--izle'nin bir önceki açılıştan sakladığı pencere yeri (yoksa None)."""
+    path = os.environ.get("TERMIK_IZLE_KONUM")
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            x, y, w, h = (int(v) for v in f.read().split())
+    except (OSError, ValueError):
+        return None
+    return (x, y, w, h) if w > 0 and h > 0 else None
 
 
 class Pilot:

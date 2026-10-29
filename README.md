@@ -9,14 +9,17 @@ arayüz kütüphanesi.
 
 ![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.8.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
+> **Durum: v0.9.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
 > öznitelikler, asyncio + thread işçileri), Ctrl+P komut paleti, modal diyaloglar, menü çubuğu ve
 > sağ tık menüleri, ipuçları ve 28 bileşen var; üç sütunlu bir demo uygulama örnek. Bir uygulama
 > birden çok pencere açabilir; dosya seçmek için işletim sisteminin kendi diyaloğu açılır, dosya
-> yöneticisinden sürükleyip bırakmak çalışır, pencere simgesi temanın rengini alır.
+> yöneticisinden sürükleyip bırakmak çalışır, pencere simgesi temanın rengini alır. Kısa yazım:
+> etiketli formlar (`ui.Form` + `label=`), alanı özniteliğe bağlama (`bind=`), sınıf yazmadan
+> uygulama (`@app.compose`, `@app.action`), `termik yeni` iskeleti ve kaydettikçe yeniden açan
+> `termik çalıştır --izle`.
 
 ![komut paleti](docs/ekran/demo-palet.png)
 
@@ -31,9 +34,11 @@ kendiliğinden kurulur. Yeni sürüme geçmek için `pip install -U termik`. Kur
 gelir:
 
 ```bash
-termik akis       # akış API'si örneği: script'e pencere
-termik demo       # bileşen katmanı demosu: çok panelli uygulama
-termik ayarlar    # görünüm tercihlerini seç ve kaydet
+termik akis                      # akış API'si örneği: script'e pencere
+termik demo                      # bileşen katmanı demosu: çok panelli uygulama
+termik yeni araç --tur arac      # proje iskeleti: uygulama (varsayılan) · arac · betik
+termik çalıştır araç/araç.py --izle   # kaydettikçe pencere yeniden açılır
+termik ayarlar                   # görünüm tercihlerini seç ve kaydet
 ```
 
 pygame-ce kurulamayan bir ortamda (bazı sunucular) akış API'si terminalde çalışmayı sürdürür.
@@ -59,20 +64,43 @@ termik.ok(f"Bitti, [bold]{ad}[/]!")
 import termik as ui
 
 class Merhaba(ui.App):
+    ad = ui.reactive("")   # bind="ad": alan değişince bu da, bu değişince alan da
+
     def compose(self):
         with ui.Panel(title="Selam"):
-            yield ui.Input(label="Adın", id="ad")
-            with ui.Row():
-                yield ui.Spacer()
-                yield ui.Button("Selamla", action="greet", variant="primary")
-        yield ui.KeyBar()   # f5 selamla · tab sonraki · ctrl+q çık
+            with ui.Form():
+                yield ui.Input(label="Adın", bind="ad")
+            yield ui.Button("Selamla", self.selamla, key="f5", variant="primary")
+        yield ui.KeyBar()   # f5 Selamla · tab sonraki · ctrl+q çık
 
-    @ui.action("Selamla", key="f5", hint="selamla")
-    def greet(self):
-        ad = self.query_one("#ad", ui.Input).value
-        self.notify(f"Merhaba {ui.escape(ad)}!", "ok")
+    def selamla(self):
+        self.notify(f"Merhaba {ui.escape(self.ad)}!", "ok")
 
 Merhaba().run()
+```
+
+Küçük bir araç için sınıf da gerekmez:
+
+```python
+app = ui.App(title="Dönüştürücü")
+app.yol = ""
+
+@app.compose
+def arayuz():
+    with ui.Form():
+        yield ui.Input(label="Dosya", bind="yol")
+    yield ui.Button("Dönüştür", donustur, key="f5")
+
+@app.action("Dosya seç", key="ctrl+o")
+async def sec():
+    yol = await app.ask_open()
+    if yol:
+        app.yol = str(yol)   # alan da güncellenir
+
+def donustur():
+    app.notify(f"{app.yol} dönüştürülüyor")
+
+app.run()
 ```
 
 ## Akış API'si
@@ -176,6 +204,21 @@ termik terminal kipi · deneme
 ✓ Kopyalanıyor       60 dosya · 2,4 sn
 ```
 
+Akış API'si bileşen katmanının bileşenlerini de kullanabilir. `termik.show(bileşen)` bileşeni dökümde
+gösterir ve bir tutamak döndürür; tutamağın metotları pencerenin kendi thread'inde çalışır, script'ten
+güvenle güncellenir. `form()`'a bir alan olarak doğrudan bileşen verilebilir; değeri bileşenden okunur:
+
+```python
+tablo = termik.show(ui.Table("Dosya", "Boyut"))
+for f in dosyalar:
+    tablo.add_row(f.name, boyut(f))
+
+ayar = termik.form("Ayarlar", düzey=ui.Slider(6, max=9), zaman=ui.Select(["Elle", "Her gün"]), ad="Efe")
+```
+
+Terminal kipinde gösterilen bileşenin o anki hali yazıya dökülür (tablo ve yazı; öbürleri için kısa bir
+not); formdaki bileşen türüne göre sayı, seçim ya da onay olarak sorulur, sınırları bileşende uygulanır.
+
 Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı bir oturum
 `termik.flow.Session(...)` ile kurulur ve aynı metotları taşır; testlerde
 `Session(mode="window", headless=True)` pencereyi görünmez açar.
@@ -223,6 +266,40 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
   bir hata uygulamayı düşürmez: konsola iz, ekrana bildirim olarak düşer.
 - **Çizim.** Ekran yalnızca bir şey değişince (ya da animasyon varken) çizilir; boşta döngü yalnızca
   olayları yoklar.
+
+## Kısa yazım
+
+Aşağıdakilerin hepsi var olan yapının üstünde ince bir katman: kısa yazım arka planda aynı bileşenleri
+kurar, ayrıntılı yol (`query_one`, `on_..._changed`, sınıflar, `@action`) olduğu gibi çalışır.
+
+- **Etiketli form.** `ui.Form` içinde her bileşen `label=` alır; Form etiketleri en uzun etikete göre
+  hizalı bir sütunda solda çizer (`form_label = "top"` ile alanın üstünde). `Input` ve `RadioSet`
+  Form içinde etiketlerini kendileri çizmez, tek satır olur. Kendi yazısı `label` olan bileşenler
+  (`Button`, `Checkbox`) bir `Row`'a konup `ui.Row(label="Seçenekler")` ile etiketlenir. Etiketsiz
+  bileşenler (not, ilerleme çubuğu) bütün genişliği kaplar; odaktaki alanın etiketi parlar.
+- **Değer bağlama (`bind=`).** `ui.Input(bind="kaynak")` alanı en yakın atadaki (çoğunlukla pencere)
+  `kaynak` özniteliğine bağlar. Öznitelik varsa değeri alana gelir, yoksa alanın değeriyle oluşur.
+  Alan değişince öznitelik, öznitelik değişince alan güncellenir: pencerenin özniteliklerinde her
+  zaman, ara bileşenlerde öznitelik `reactive` ise. Sayı tutan özniteliğe bağlı yazı alanının değeri
+  sayıya çevrilir (çevrilemezse öznitelik eskisinde kalır). Bağlanabilenler: `Input`, `TextArea`,
+  `Checkbox`, `RadioSet`, `Select`, `Slider`, `Spinbox`.
+- **Sınıf yazmadan.** `app = ui.App(...)`; arayüz `@app.compose`, komutlar `@app.action("Ad", key=…)`
+  (kısayol satırında ve palette görünür), mesajlar `@app.on(ui.Button.Pressed)` ya da
+  `@app.on("mount")` ile. Fonksiyonlar argümansız ya da uygulamayı alan biçimde yazılabilir.
+  Çalışırken eylem eklemek için her bileşende `add_action(ad, fonksiyon, key=…)` var.
+- **Kısa düğme.** `ui.Button("Kaydet", self.kaydet, key="ctrl+s")`: ikinci argüman fonksiyon ya da
+  eylem adı; `key=` düğmenin ekranında odak nerede olursa olsun çalışır ve kısayol satırında görünür
+  (üstte bir diyalog açıkken çalışmaz).
+- **Proje iskeleti.** `termik yeni AD` menüsüz ama formlu, bağlamalı, kısayollu bir uygulama ve
+  testini; `--tur arac` sınıfsız küçük bir araç ve testini; `--tur betik` akış betiği kurar.
+  Üretilen testler pencere açmadan çalışır.
+- **Kaydettikçe yeniden aç.** `termik çalıştır dosya.py --izle` klasördeki `.py` dosyaları değişince
+  programı yeniden başlatır; pencere bir önceki yerinde ve boyutunda açılır. Pencere kapatılınca
+  izleme de biter; program hatayla biterse düzeltilip kaydedilmesi beklenir.
+- **Editör desteği.** Açık API'nin tamamında tip ipuçları var (`SizeSpec`, `ColorSpec`, `ImageSource`
+  gibi adlarla); VS Code ve PyCharm'da tamamlama ve parametre önerileri çalışır.
+
+![sınıf yazmadan kurulmuş araç: Form, bind ve düğme kısayolu](docs/ekran/kolay-arac.png)
 
 ## Pencereler ve sistem
 
@@ -292,7 +369,7 @@ class Uygulama(ui.App):
 | Bileşen | İş |
 |---|---|
 | `Static`, `Label` | Markup yazı; `Static` genişliğe göre kaydırır, `Label` `…` ile kısalır |
-| `Button` | `[ Tamam ]`; `action=`, `on_press=`, `variant="primary"`; Enter/Space/tık |
+| `Button` | `[ Tamam ]`; ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık |
 | `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
@@ -312,6 +389,7 @@ class Uygulama(ui.App):
 | `Panel` | Başlıklı çerçeve; içindekileri alt alta dizer; `floating=True` yüzen kutular için |
 | `ScrollView` | Kaydırılabilir kapsayıcı: tekerlek, PgUp/PgDn, sürüklenebilir çubuk; odaktaki bileşeni görünür alana getirir |
 | `Dialog`, `PromptDialog` | Modal kutular; çoğunlukla `App.confirm/alert/prompt` ile kullanılır |
+| `Form` | Etiketli alanlar: çocukların `label=`'larını hizalı bir sütunda çizer (yukarıda **Kısa yazım**) |
 | `Window` | Ek işletim sistemi penceresi (yukarıda **Pencereler ve sistem**) |
 | `FileBrowser` | termik'in dosya gezgini: açma, çoklu seçim (space işaretler), klasör, kaydetme (ad alanı, uzantı süzgeçten, üzerine yazma onayı); yerel diyalog yoksa açılır |
 | `MenuBar`, `Menu`, `MenuItem` | Menü çubuğu ve menüler (yukarıda **Menüler**) |
@@ -382,6 +460,12 @@ bloklar); sayı alanı açılır seçimle aynı köşeli dilde (`spin`); ayraç 
 
 **29.10.2026 · ilk yayın:** 0.8.0 PyPI'ye yüklendi; `pip install termik` çalışıyor.
 
+**Kısa yazım turu:** özelleştirmeden ödün vermeden daha az kod. Etiketli formlar `ui.Form` +
+`label=` (etiketler solda hizalı; `form_label` ile üstte); değer bağlama `bind=` ile pencerenin
+özniteliğine; sınıfsız uygulama dekoratörlerle (`@app.compose`, `@app.action`, `@app.on`); düğmeye
+fonksiyon ve kısayol doğrudan; akışta `show()` ve `form()`'da bileşen; `termik yeni` ve
+`termik çalıştır --izle`; açık API'de tam tip ipuçları. Demo formu bu yazımla yeniden yazıldı.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -406,6 +490,7 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `image` | `smooth` yumuşak ölçek · `pixel` karakter ızgarasına oturan iri pikseller · `blocks` hücre başına iki piksel (▀) | `smooth` |
 | `spin` | `bracket` `[ − 12 + ]` · `arrows` `◂ 12 ▸` · `stacked` alan ve sağda ▴▾ | `bracket` (modern: `stacked`) |
 | `split` | `line` ince çizgi ve ⋮ tutamak · `bar` dolu sütun · `hidden` yalnızca fare gelince | `line` |
+| `form_label` | `left` etiketler solda, en uzun etikete göre hizalı · `top` alanın üstünde | `left` |
 | `radius`, `panel_fill` | köşe yarıçapı; panellerin kart gibi dolu olup olmadığı | `0`, `False` |
 
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
@@ -453,6 +538,7 @@ python tests/test_settings.py
 python tests/test_components.py
 python tests/test_windows.py
 python tests/test_extras.py
+python tests/test_easy.py
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
@@ -502,7 +588,8 @@ python -m twine upload dist/*
 | Dosya | İçerik |
 |---|---|
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
-| `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
+| `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `yeni`, `çalıştır`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
+| `termik/dev.py` | Proje iskeletleri (`termik yeni`) ve kaydettikçe yeniden başlatan izleyici (`termik çalıştır --izle`) |
 | `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |
 | `termik/filedialog.py`, `system.py`, `icon.py` | Dosya diyalogları (Windows'ta COM ile Common Item Dialog, macOS'ta osascript, Linux'ta zenity/kdialog, yoksa `FileBrowser`); işletim sistemi yardımcıları (ekran ölçeği, iki boyutlu pencere simgesi, modal kilit, farenin masaüstü konumu); varsayılan pencere simgesi |
@@ -516,7 +603,7 @@ python -m twine upload dist/*
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 113 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), resim/Canvas/sayı alanı/Split (5), ayarlar ve komut satırı (11) |
+| `tests/` | 121 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), resim/Canvas/sayı alanı/Split (5), kısa yazım (8), ayarlar ve komut satırı (11) |
 
 ## Öğrendiklerimiz
 
@@ -564,6 +651,10 @@ python -m twine upload dist/*
   çıkarılarak bırakılan yer bulunuyor.
 - **Common Item Dialog ctypes ile COM üzerinden açılıyor:** ayrı thread'de, kendi tek thread'li
   dairesinde. `Show(sahip)` sahibini kendisi kilitliyor; bu arada pygame döngüsü çizmeye devam ediyor.
+- **Sınıf gövdesinde `action` adlı bir metot, ondan sonraki `@action` süslemelerini gölgeler:** gövdede
+  ad önce sınıfın kendi isim alanında aranır. `Window.action` bu yüzden sınıfın en sonunda tanımlı.
+- **Düz özniteliği izlemek için tanımlayıcı gerekmiyor:** `Window.__setattr__` atamadan sonra o ada
+  bağlı alanlara haber veriyor; böylece `app.yol = …` gibi tanımsız öznitelikler de iki yönlü.
 
 ## Sıradaki adımlar
 

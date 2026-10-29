@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Key, Message, MouseMove, MouseScroll, TextInput
 from ..fuzzy import match, score
 from ..text import Style, escape
@@ -55,7 +56,7 @@ class OptionList(Widget):
             super().__init__()
             self.option_list, self.indices = option_list, indices
 
-    def __init__(self, options: list[str], *, index: int = 0, multi: bool = False, selected=(), rows: int = 8,
+    def __init__(self, options: list[str], *, index: int = 0, multi: bool = False, selected: Iterable[int] = (), rows: int = 8,
                  filterable: bool = True, on_select: Callable | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.options = list(options)
@@ -142,13 +143,13 @@ class OptionList(Widget):
     def _visible_rows(self) -> int:
         return max(1, min(self.rows, len(self.matches)))
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         if self._longest is None or self._longest[0] != p.ch:
             self._longest = (p.ch, max((p.text.width([(o, Style())]) for o in self.options), default=0))
         lead = p.ch * (6 if self.multi else 2) + p.ch // 2
         return min(width, max(p.ch * 30, self._longest[1] + lead + p.ch * 3)), self._visible_rows() * p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         if not self.matches:

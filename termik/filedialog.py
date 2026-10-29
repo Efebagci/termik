@@ -23,7 +23,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from . import system
 from .dialog import Dialog
@@ -396,7 +396,7 @@ class FileBrowser(Dialog):
             line += f"  [faint]· {escape(label)} ({escape(' '.join(patterns))})[/]"
         return line
 
-    def compose_body(self):
+    def compose_body(self) -> Iterable[Widget]:
         yield self.where
         yield self.tree
         if self.filename is not None:

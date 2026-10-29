@@ -16,11 +16,16 @@ class Size:
     value: float = 0.0
 
 
+# Boyut yazımı: 30 (karakter ya da satır), "12px", "40%", "2fr", "auto"; None verilmedi demek
+SizeSpec = int | float | str | Size | None
+# İç boşluk: 1 (her yan) · (dikey, yatay) · (üst, sağ, alt, sol); dikey satır, yatay karakter
+PaddingSpec = float | tuple[float, float] | tuple[float, float, float, float] | None
+
 AUTO = Size("auto")
 FILL = Size("fr", 1.0)
 
 
-def parse_size(spec) -> Size | None:
+def parse_size(spec: SizeSpec) -> Size | None:
     """30 → 30 hücre, "12px", "40%", "2fr", "fr", "auto". None olduğu gibi döner."""
     if spec is None or isinstance(spec, Size):
         return spec
@@ -73,7 +78,7 @@ def distribute(specs: list[Size], natural: list[int], available: int, unit: int)
     return sizes
 
 
-def parse_padding(spec) -> tuple[float, float, float, float]:
+def parse_padding(spec: PaddingSpec) -> tuple[float, float, float, float]:
     """İç boşluk: 1 → her yan; (dikey, yatay); (üst, sağ, alt, sol). Dikey satır, yatay karakter."""
     if spec is None:
         return 0.0, 0.0, 0.0, 0.0

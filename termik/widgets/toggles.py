@@ -6,6 +6,7 @@ from typing import Callable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Message, MouseMove
 from ..reactive import reactive
 from ..text import Style
@@ -19,6 +20,7 @@ class Checkbox(Widget):
     default_height = "auto"
     can_focus = True
     cursor = "hand"
+    bind_value = "value"
     value = reactive(False)
 
     class Changed(Message):
@@ -35,10 +37,10 @@ class Checkbox(Widget):
     def _markup(self, p) -> str:
         return f"{p.check(self.value)} " + (self.label if self.value else f"[dim]{self.label}[/]")
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return p.text.width(self._markup(p)) + p.ch, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         if self.hovered or self.has_focus:
             p.hover((c.x, c.y, p.text.width(self._markup(p)) + p.ch, p.row))
@@ -49,6 +51,7 @@ class Checkbox(Widget):
 
     def watch_value(self, value: bool) -> None:
         self.post_message(Checkbox.Changed(self, value))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, value)
 
@@ -71,6 +74,7 @@ class RadioSet(Widget):
     default_height = "auto"
     can_focus = True
     cursor = "hand"
+    bind_value = "value"
     index = reactive(0)
 
     class Changed(Message):
@@ -83,6 +87,7 @@ class RadioSet(Widget):
         super().__init__(**kwargs)
         self.options = list(options)
         self.label = label
+        self.field_label = label  # Form içindeyse etiketi Form çizer
         self.label_width = label_width
         self.on_change = on_change
         self.index = index
@@ -93,26 +98,35 @@ class RadioSet(Widget):
     def value(self) -> str:
         return self.options[self.index] if self.options else ""
 
+    @value.setter
+    def value(self, value: str) -> None:
+        if value in self.options:
+            self.index = self.options.index(value)
+
+    @property
+    def _shows_label(self) -> bool:
+        return bool(self.label) and not self._in_form
+
     def _markup(self, p, i: int) -> str:
         name = self.options[i]
         return f"{p.radio(i == self.index)} " + (name if i == self.index else f"[dim]{name}[/]")
 
     def _option_rects(self, p, x: int, y: int) -> list[pygame.Rect]:
         rects = []
-        x += round(self.label_width * p.ch) if self.label else 0
+        x += round(self.label_width * p.ch) if self._shows_label else 0
         for i in range(len(self.options)):
             w = p.text.width(self._markup(p, i)) + p.ch
             rects.append(pygame.Rect(x, y, w, p.row))
             x += w + p.ch * 2
         return rects
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         rects = self._option_rects(p, 0, 0)
         return (rects[-1].right if rects else 0), p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
-        if self.label:
+        if self._shows_label:
             p.write(c.x, c.y, self.label, color=p.theme.dim)
         self._rects = self._option_rects(p, c.x, c.y)
         for i, rect in enumerate(self._rects):
@@ -126,6 +140,7 @@ class RadioSet(Widget):
 
     def watch_index(self, index: int) -> None:
         self.post_message(RadioSet.Changed(self, index, self.value))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, self.value)
 

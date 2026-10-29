@@ -6,6 +6,7 @@ import time
 from typing import Callable
 
 from .. import clipboard, keys
+from ..draw import Painter
 from ..events import Click, Drop, Key, Message, MouseDown, MouseMove, MouseScroll, TextInput
 from ..text import Style
 from ..theme import mix
@@ -37,6 +38,7 @@ class TextArea(Widget):
     can_focus = True
     accepts_text = True
     cursor = "ibeam"
+    bind_value = "text"
 
     class Changed(Message):
         def __init__(self, text_area: TextArea, text: str) -> None:
@@ -97,6 +99,7 @@ class TextArea(Widget):
             self.post_message(TextArea.Changed(self, self.text))
             if self.on_change is not None:
                 self._call(self.on_change, self.text)
+        self._sync_bind()
         self.refresh(layout=self.max_rows is not None)
 
     @property
@@ -451,7 +454,7 @@ class TextArea(Widget):
     def _gutter(self, p) -> int:
         return p.text.width(str(len(self.lines))) + p.ch * 2 if self.line_numbers else 0
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         rows = self.rows
         if self.max_rows is not None:  # render'daki yazı genişliğiyle aynı hesap
             segs, _ = self._segments(p, max(p.ch, width - self._gutter(p) - p.ch // 2 - p.ch * 2))
@@ -462,7 +465,7 @@ class TextArea(Widget):
         idle = time.monotonic() - self._edited_at
         return idle < 0.6 or (idle % 1.06) < 0.53
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         focused = self.has_focus

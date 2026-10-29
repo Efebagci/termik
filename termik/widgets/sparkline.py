@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 
+from ..draw import Painter
 from ..widget import Widget
 
 
@@ -20,7 +21,7 @@ class Sparkline(Widget):
 
     default_height = "auto"
 
-    def __init__(self, data=None, *, label: str | None = None, value_format: str | Callable | None = None,
+    def __init__(self, data: Iterable[float] | None = None, *, label: str | None = None, value_format: str | Callable | None = None,
                  max_value: float | None = None, color: str = "green", maxlen: int = 240, **kwargs) -> None:
         super().__init__(**kwargs)
         self.data: list[float] = list(data or [])[-maxlen:]
@@ -32,14 +33,14 @@ class Sparkline(Widget):
         del self.data[: -self.maxlen]
         self.refresh()
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return p.ch * 16, p.row
 
     def _format(self, value: float) -> str:
         fmt = self.value_format
         return fmt.format(value) if isinstance(fmt, str) else fmt(value)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         x, right = c.x, c.right

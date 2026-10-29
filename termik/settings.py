@@ -47,7 +47,7 @@ _HEADER = """\
 # Öncelik: koddaki değer > ortam değişkeni (TERMIK_THEME…) > bu dosya > varsayılan.
 # Ayarlanabilenler: theme, look, density, mode, dialogs, font, font_bold ve biçim belirteçleri
 # (title, focus, button, bar, selection, shadow, radio, tabs, slider, select, image, spin,
-# split, radius, panel_fill, font_size, line_height, pad_x, pad_y) ile renkler (accent = "#ff8800" gibi).
+# split, form_label, radius, panel_fill, font_size, line_height, pad_x, pad_y) ile renkler (accent = "#ff8800" gibi).
 """
 
 _warned: set[str] = set()

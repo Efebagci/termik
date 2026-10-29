@@ -6,6 +6,7 @@ import time
 from typing import Callable
 
 from .. import clipboard
+from ..draw import Painter
 from ..events import Drop, Key, Message, MouseDown, MouseMove, TextInput
 from ..reactive import reactive
 from ..text import Style
@@ -35,6 +36,7 @@ class Input(Widget):
     can_focus = True
     accepts_text = True
     cursor = "ibeam"
+    bind_value = "value"
     value = reactive("")
 
     class Changed(Message):
@@ -52,6 +54,7 @@ class Input(Widget):
                  on_submit: Callable | None = None, on_change: Callable | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.label, self.placeholder, self.prompt = label, placeholder, prompt
+        self.field_label = label  # Form içindeyse etiketi Form solda çizer, alan tek satır olur
         self.password, self.max_length = password, max_length
         self.on_submit, self.on_change = on_submit, on_change
         self.value = value
@@ -120,6 +123,7 @@ class Input(Widget):
     def watch_value(self, value: str) -> None:
         self.cursor_position = min(self.cursor_position, len(value))
         self.post_message(Input.Changed(self, value))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, value)
 
@@ -232,15 +236,23 @@ class Input(Widget):
         idle = time.monotonic() - self._edited_at
         return idle < 0.6 or (idle % 1.06) < 0.53
 
-    def measure(self, p, width: int) -> tuple[int, int]:
-        return p.ch * 24, p.row * (2 if self.label else 1)
+    @property
+    def _shows_label(self) -> bool:
+        return bool(self.label) and not self._in_form
 
-    def render(self, p) -> None:
+    def _bind_pull(self, value) -> None:
+        super()._bind_pull(value)
+        self.cursor_position, self._anchor = len(self.value), None
+
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
+        return p.ch * 24, p.row * (2 if self._shows_label else 1)
+
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         focused = self.has_focus
         x, y = c.x, c.y
-        if self.label:  # etiket + solda odak çubuğu
+        if self._shows_label:  # etiket + solda odak çubuğu
             p.surface.fill(th.accent if focused else th.border, (x, y + 3, 2, p.row * 2 - 6))
             x += p.ch + p.ch // 2
             p.write(x, y, self.label, color=th.text if focused else th.dim)

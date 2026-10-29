@@ -7,6 +7,7 @@ from typing import Callable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Blur, Key, Message, MouseDown, MouseMove, MouseScroll, TextInput
 from ..reactive import reactive
 from ..text import Style
@@ -41,6 +42,7 @@ class Spinbox(Widget):
     can_focus = True
     accepts_text = True
     cursor = "hand"
+    bind_value = "value"
     value = reactive(0)
 
     class Changed(Message):
@@ -79,6 +81,7 @@ class Spinbox(Widget):
 
     def watch_value(self, value: float) -> None:
         self.post_message(Spinbox.Changed(self, value))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, value)
 
@@ -198,7 +201,7 @@ class Spinbox(Widget):
         samples = [self.format.format(v) for v in (self.minimum, self.maximum, self.value) if v is not None]
         return max(max((p.text.width(s, _BOLD) for s in samples), default=0) + p.ch, p.ch * 5)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         field = self._field(p)
         extra = {"arrows": 4, "stacked": 4}.get(p.theme.spin, 8)  # ◂ … ▸ · … ▴▾ · [ − … + ]
         return field + p.ch * extra, p.row
@@ -214,7 +217,7 @@ class Spinbox(Widget):
             right -= p.ch
         p.write(right, y, [(text, _BOLD if self.has_focus else Style())], color=color, right=True)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         y = c.y

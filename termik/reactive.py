@@ -49,6 +49,10 @@ class reactive(Generic[T]):
         if old == value and not self.always_update:
             return
         obj.__dict__[self.attr] = value
+        binders = obj.__dict__.get("_binders")
+        if binders and self.name in binders:  # bind= ile bağlı alanlar da güncellensin
+            for widget in list(binders[self.name]):
+                widget._bind_pull(value)
         if not getattr(obj, "_mounted", False):
             return
         watcher = getattr(obj, f"watch_{self.name}", None)

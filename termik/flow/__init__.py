@@ -32,11 +32,12 @@ from .. import settings
 from ..markup import escape
 from ..theme import THEMES, Theme, with_look
 from . import capture as _capture
-from .common import ICONS, Progress, format_table
+from .common import ICONS, Progress, Shown, WidgetValue, format_table, is_widget
 
 __all__ = [
     "Field", "Password", "Progress", "Session", "ask", "ask_path", "choose", "choose_many", "confirm", "error",
-    "form", "info", "ok", "print", "progress", "restyle", "rule", "setup", "spinner", "table", "track", "warn",
+    "form", "info", "ok", "print", "progress", "restyle", "rule", "setup", "show", "spinner", "table", "track",
+    "warn",
 ]
 
 T = TypeVar("T")
@@ -178,6 +179,20 @@ class Session:
     def table(self, rows: Iterable, headers: Iterable | None = None) -> None:
         """Hizalı tablo yaz; rows dizi ya da sözlük listesi (başlıklar anahtarlardan gelir)."""
         self._io().table(format_table(rows, headers))
+
+    def show(self, widget: Any) -> Shown:
+        """Bileşen katmanından bir bileşeni dökümde göster; script'ten güncellemek için tutamak döndürür:
+
+            tablo = termik.show(ui.Table("Dosya", "Boyut"))
+            for f in dosyalar:
+                tablo.add_row(f.name, boyut(f))
+
+        Tutamağın metot çağrıları ve öznitelik atamaları pencerenin thread'inde çalışır. Terminal
+        kipinde bileşenin o anki hali yazıya dökülür (tablo ve yazı; öbürleri için kısa bir not).
+        """
+        if not is_widget(widget):
+            raise TypeError(f"show(): bileşen bekleniyordu, {type(widget).__name__} geldi")
+        return self._io().show(widget)
 
     # ── sorular ───────────────────────────────────────────
 
@@ -480,8 +495,52 @@ class _FormField:
         return escape(str(value)) if str(value) else "[faint](boş)[/]"
 
 
+class _WidgetField(_FormField):
+    """form()'a doğrudan verilen bileşen (ui.Slider(6, max=9) gibi). Pencerede kendisi görünür;
+    terminalde türüne göre seçim, onay ya da yazı (sayıysa sayı) olarak sorulur."""
+
+    def __init__(self, name: str, widget: Any) -> None:
+        self.name, self.widget = name, widget
+        self.label = widget.field_label or escape(_label_of(name))
+        value = widget._bound_get()
+        self.field = Field(value, label=self.label)
+        options = getattr(widget, "options", None)
+        if isinstance(options, list) and options:
+            self.kind = "choice"
+            self.items = [(str(o), o) for o in options]
+            self.index = options.index(value) if value in options else 0
+        elif isinstance(value, bool):
+            self.kind = "check"
+        else:
+            self.kind = "text"
+            self.convert = str if isinstance(value, str) else type(value)
+
+    def ui(self) -> dict[str, Any]:
+        return {**super().ui(), "widget": self.widget}
+
+    def parse(self, raw: Any) -> Any:
+        if isinstance(raw, WidgetValue):  # pencereden: bileşenin kendi değeri
+            return raw.value
+        value = super().parse(raw)
+        setter = getattr(self.widget, "set", None)  # terminalden: sınırlar ve adım bileşende uygulansın
+        if callable(setter) and isinstance(value, (int, float)) and not isinstance(value, bool):
+            setter(value)
+            return self.widget._bound_get()
+        return value
+
+    def summary(self, raw: Any, value: Any) -> str:
+        if isinstance(value, bool):
+            return "evet" if value else "hayır"
+        return escape(str(value)) if str(value) else "[faint](boş)[/]"
+
+
 def _form_field(name: str, value: Any) -> _FormField:
-    """form(ad=değer) değerinden alan: Field, Field sınıfı (termik.Password), seçenekler, tür ya da varsayılan."""
+    """form(ad=değer) değerinden alan: bileşen, Field, Field sınıfı (termik.Password), seçenekler, tür ya da
+    varsayılan."""
+    if is_widget(value):
+        if value.bind_value is None:
+            raise TypeError(f"form(): {name} alanındaki {type(value).__name__} bir değer tutmuyor")
+        return _WidgetField(name, value)
     if isinstance(value, type) and issubclass(value, Field):
         value = value()
     if not isinstance(value, Field):
@@ -647,6 +706,12 @@ def choose_many(label: str, options: Iterable[T] | dict[str, T], *, default: Ite
 def confirm(label: str, *, default: bool = True, yes: str = "Evet", no: str = "Hayır") -> bool:
     """Evet/hayır sor: if termik.confirm("Silinsin mi?", default=False): …"""
     return _session().confirm(label, default=default, yes=yes, no=no)
+
+
+def show(widget: Any) -> Shown:
+    """Bileşen katmanından bir bileşeni dökümde göster: tablo = termik.show(ui.Table("Ad", "Boyut")).
+    Ayrıntı: Session.show."""
+    return _session().show(widget)
 
 
 def form(title: str = "", /, **fields: Any) -> dict[str, Any]:

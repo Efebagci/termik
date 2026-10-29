@@ -8,11 +8,12 @@ gevşek eşleşir: "baslat" yazınca "Başlat" da bulunur.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterable
 
 import pygame
 
 from . import keys
+from .draw import Painter
 from .events import Click, MouseMove, MouseScroll
 from .fuzzy import match, score
 from .text import Style
@@ -54,7 +55,7 @@ class _CommandList(Widget):
     def _rows(self) -> int:
         return max(1, min(self.MAX_ROWS, len(self.palette.matches)))
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return 0, self._rows() * p.row + p.row // 2
 
     def _row_at(self, y: int) -> int | None:
@@ -63,7 +64,7 @@ class _CommandList(Widget):
         i = self._top + row
         return i if 0 <= row < self._rows() and i < len(self.palette.matches) else None
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         p.surface.fill(th.border, (c.x, c.y + p.row // 4, c.w, 1))
@@ -132,20 +133,20 @@ class CommandPalette(Screen):
         self.box: Panel | None = None
         self.results = _CommandList(self)
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         with Panel(title="Komutlar", info="[faint]ctrl+p[/]", footer="[faint]↑↓ seç · ⏎ çalıştır · esc kapat[/]",
                    floating=True) as box:
             self.box = box
             yield Input(placeholder="komut ara…", id="palette-query")
             yield self.results
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         r = self.region
         w = min(r.w - p.ch * 6, p.ch * 64)
         h = self.box.natural_size(p, w)[1]
         self.box._layout(p, pygame.Rect(r.x + (r.w - w) // 2, r.y + round(r.h * 0.17), w, h))
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         p.shadow(self.box.frame)
 
     def filter(self, query: str) -> None:

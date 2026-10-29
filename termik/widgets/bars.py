@@ -7,6 +7,7 @@ import time
 import pygame
 
 from .. import keys
+from ..draw import Painter
 from ..events import Click, MouseMove
 from ..reactive import reactive
 from ..text import Style, escape
@@ -29,10 +30,10 @@ class Header(Widget):
         if self.clock:
             self.set_interval(15, self.refresh)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return 0, max(p.heading.height + 6, p.row)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         base = c.y + (c.h - p.heading.height) // 2 + p.heading.stack.ascent  # ortak taban çizgisi
@@ -58,10 +59,10 @@ class KeyBar(Widget):
         self._items: list[tuple[pygame.Rect, Widget, str]] = []
         self._hover_i: int | None = None
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return 0, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         sep = "  [faint]·[/]  "
         x = c.x
@@ -119,10 +120,10 @@ class StatusBar(Widget):
         super().__init__(**kwargs)
         self.mode, self.mode_color, self.left, self.right = mode, mode_color, left, right
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return 0, p.row + (6 if p.theme.radius else 2)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         bar = self.content
         p.round_rect(bar, th.raised)

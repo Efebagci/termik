@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Message
 from ..popup import Popup
 from ..reactive import reactive
@@ -25,6 +26,7 @@ class Select(Widget):
     """
 
     default_width = "auto"
+    bind_value = "value"
     default_height = "auto"
     can_focus = True
     cursor = "hand"
@@ -49,19 +51,25 @@ class Select(Widget):
     def value(self) -> str | None:
         return self.options[self.index] if self.options else None
 
+    @value.setter
+    def value(self, value: str) -> None:
+        if value in self.options:
+            self.index = self.options.index(value)
+
     def watch_index(self, index: int) -> None:
         self.post_message(Select.Changed(self, index))
+        self._sync_bind()
         if self.on_change is not None:
             self._call(self.on_change, self.value)
 
     # ── yerleşim ve çizim ────────────────────────────────
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         longest = max((p.text.width([(o, Style(bold=True))]) for o in self.options), default=p.ch * 4)
         extra = {"arrows": 4, "underline": 3}.get(p.theme.select, 6)  # ◂ … ▸ · … ▾ · [ … ▾ ]
         return longest + p.ch * extra, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         style = th.select
@@ -126,7 +134,7 @@ class _SelectPopup(Popup):
         super().__init__(select.region, min_width=select.region.w)
         self.list = OptionList(select.options, index=select.index, rows=min(8, len(select.options)))
 
-    def compose_body(self):
+    def compose_body(self) -> Iterable[Widget]:
         yield self.list
 
     def on_mount(self) -> None:

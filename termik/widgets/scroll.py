@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pygame
 
+from ..draw import Painter
 from ..events import Key, MouseDown, MouseMove, MouseScroll, MouseUp
 from ..widget import Widget, action
 
@@ -48,7 +49,7 @@ class ScrollView(Widget):
     def _heights(self, p, kids: list[Widget], width: int) -> list[int]:
         return [self._child_height(c, p, self._child_width(c, p, width), 0) for c in kids]
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         kids = [c for c in self.children if c.display]
         box = self.content
         gap = self._gap_px(p)
@@ -92,7 +93,7 @@ class ScrollView(Widget):
         size = max(self.app.painter.row // 2, round(c.h * c.h / max(1, self._virtual)))
         return c.y + round((c.h - size) * self.scroll_y / max(1, self.max_scroll)), size
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         p.scrollbar(c.right - 2, c.y, c.h, self._virtual, c.h, self.scroll_y, active=self.focus_within)
 

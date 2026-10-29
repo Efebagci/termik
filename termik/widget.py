@@ -14,6 +14,7 @@ otuz karakter, height=5 beş satır demektir; ayrıca "12px", "40%", "2fr" ve "a
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, TypeVar
@@ -22,14 +23,16 @@ import pygame
 
 from . import keys
 from ._util import call_flexible
-from .events import Message
-from .layout import AUTO, FILL, Size, distribute, parse_padding, parse_size, resolve
+from .events import Message, MouseDown
+from .layout import AUTO, FILL, PaddingSpec, Size, SizeSpec, distribute, parse_padding, parse_size, resolve
 
 if TYPE_CHECKING:
     from .app import App, Timer, Window
     from .draw import Painter
 
 W = TypeVar("W", bound="Widget")
+F = TypeVar("F", bound=Callable)
+_MISSING = object()
 
 # compose() çalışırken açık kapsayıcıların yığını; `with Row():` kendini buraya ekler
 _compose_stack: ContextVar[list | None] = ContextVar("termik_compose", default=None)
@@ -47,7 +50,7 @@ class ActionInfo:
 
 
 def action(label: str, key: str | Iterable[str] | None = None, *, hint: str | None = None,
-           show: bool = True, palette: bool = True, priority: bool = False):
+           show: bool = True, palette: bool = True, priority: bool = False) -> Callable[[F], F]:
     """Metodu komut yap: tuşa bağlanır, kısayol satırında görünür, butona action= ile verilir.
 
         @action("Yedeklemeyi başlat", key="f5", hint="başlat")
@@ -56,14 +59,18 @@ def action(label: str, key: str | Iterable[str] | None = None, *, hint: str | No
     key virgülle ayrılmış birden çok tuş olabilir ("escape,q"). hint kısayol satırındaki kısa
     addır (yoksa label kullanılır). priority=True eylemler odaktaki bileşenden önce denenir.
     """
-    raw = key.split(",") if isinstance(key, str) else list(key or ())
-    bound = tuple(keys.normalize(k) for k in raw if k.strip())
+    bound = _parse_keys(key)
 
     def decorate(fn):
         fn._termik_action = ActionInfo(fn.__name__, label, bound, hint, show, palette, priority)
         return fn
 
     return decorate
+
+
+def _parse_keys(key: str | Iterable[str] | None) -> tuple[str, ...]:
+    raw = key.split(",") if isinstance(key, str) else list(key or ())
+    return tuple(keys.normalize(k) for k in raw if k.strip())
 
 
 def _matches(widget: Widget, selector) -> bool:
@@ -87,6 +94,7 @@ class Widget:
     can_focus = False
     accepts_text = False       # odaktayken harf tuşları kısayol değil yazı sayılır
     cursor: str | None = None  # üstüne gelince fare imleci: "hand", "ibeam", "ew", "ns", "crosshair"
+    bind_value: str | None = None  # bind= ile eşlenen öznitelik ("value", "text"…); None: bağlanamaz
 
     _actions: dict[str, ActionInfo] = {}
 
@@ -104,8 +112,12 @@ class Widget:
         cls._actions = merged
 
     def __init__(self, *children: Widget, id: str | None = None, classes: str = "",
-                 width=None, height=None, min_width=None, max_width=None, min_height=None, max_height=None,
-                 padding=0, gap=0, disabled: bool = False, display: bool = True, tooltip: str | None = None) -> None:
+                 width: SizeSpec = None, height: SizeSpec = None, min_width: SizeSpec = None,
+                 max_width: SizeSpec = None, min_height: SizeSpec = None, max_height: SizeSpec = None,
+                 padding: PaddingSpec = 0, gap: SizeSpec = 0, disabled: bool = False, display: bool = True, tooltip: str | None = None,
+                 label: str | None = None, bind: str | None = None) -> None:
+        if bind is not None and type(self).bind_value is None:
+            raise TypeError(f"{type(self).__name__} bind= almaz (bağlanacak bir değeri yok)")
         self.id = id
         self.classes = set(classes.split())
         self.tooltip = tooltip  # fare üstünde durunca gösterilen ipucu (markup)
@@ -126,6 +138,11 @@ class Widget:
         self._mounted = False
         self._composed = False
         self._timers: list[Timer] = []
+        self.field_label = label  # Form içinde alanın solundaki (ya da üstündeki) etiket
+        self.bind = bind          # bağlı öznitelik adı: değer pencerenin (ya da bir atanın) özniteliğiyle eşlenir
+        self._bound_to: Widget | None = None
+        self._pulling = False
+        self._in_form = False     # Form'un doğrudan çocuğu: etiketini Form çizer
         for child in children:
             self._add_child(child)
 
@@ -325,10 +342,35 @@ class Widget:
     def _binding(self, key: str, priority: bool) -> ActionInfo | None:
         if self._disabled:
             return None
-        for info in type(self)._actions.values():
+        for info in self._actions_map().values():
             if info.priority == priority and key in info.keys:
                 return info
         return None
+
+    def _actions_map(self) -> dict[str, ActionInfo]:
+        """Bu nesnenin eylemleri: önce add_action ile eklenenler, sonra sınıfın @action'ları."""
+        extra = self.__dict__.get("_extra_actions")
+        if not extra:
+            return type(self)._actions
+        merged = dict(extra)
+        for name, info in type(self)._actions.items():
+            merged.setdefault(name, info)
+        return merged
+
+    def add_action(self, name: str, fn: Callable, label: str | None = None, *, key: str | Iterable[str] | None = None,
+                   hint: str | None = None, show: bool = True, palette: bool = True, priority: bool = False) -> None:
+        """Çalışırken eylem ekle: @action gibi tuşa bağlanır, kısayol satırında ve palette görünür,
+        butona action="ad" ile verilir. fn argümansız ya da bu nesneyi alan bir fonksiyon olabilir."""
+        info = ActionInfo(name, label or name, _parse_keys(key), hint, show, palette, priority)
+        self.__dict__.setdefault("_extra_actions", {})[name] = info
+        setattr(self, name, lambda: call_flexible(fn, self))
+        self.refresh()
+
+    def remove_action(self, name: str) -> None:
+        extra = self.__dict__.get("_extra_actions") or {}
+        if extra.pop(name, None) is not None:
+            self.__dict__.pop(name, None)
+            self.refresh()
 
     def run_action(self, name: str) -> bool:
         """`name` eylemini bu bileşenden başlayıp yukarı doğru arayıp çalıştır.
@@ -338,7 +380,7 @@ class Widget:
         """
         scope, _, short = name.rpartition(".")
         for node in self._action_nodes(scope):
-            if short in type(node)._actions and not node._disabled:
+            if short in node._actions_map() and not node._disabled:
                 node._call(getattr(node, short))
                 return True
         return False
@@ -355,6 +397,70 @@ class Widget:
             nodes.append(self._app)
         return nodes
 
+    # ── değer bağlama ─────────────────────────────────────
+
+    def _bind_owner(self) -> Widget | None:
+        """bind= adını taşıyan en yakın ata (sınıfında reactive ya da örnekte öznitelik); yoksa pencere."""
+        name = self.bind
+        for node in self.ancestors():
+            if name in node.__dict__:
+                return node
+            attr = getattr(type(node), name, _MISSING)
+            if attr is not _MISSING and not callable(attr):
+                return node
+        return self._window
+
+    def _bind_attach(self) -> None:
+        """Bağlanınca: öznitelik varsa değeri alana gelir, yoksa alanın değeriyle oluşur."""
+        owner = self._bind_owner()
+        if owner is None:
+            return
+        name, self._bound_to = self.bind, owner
+        try:
+            current = getattr(owner, name)
+        except AttributeError:
+            setattr(owner, name, self._bound_get())
+        else:
+            self._bind_pull(current)
+        owner.__dict__.setdefault("_binders", {}).setdefault(name, []).append(self)
+
+    def _bind_detach(self) -> None:
+        owner, self._bound_to = self._bound_to, None
+        binders = owner.__dict__.get("_binders", {}).get(self.bind) if owner is not None else None
+        if binders and self in binders:
+            binders.remove(self)
+
+    def _bound_get(self) -> Any:
+        return getattr(self, self.bind_value)
+
+    def _bind_pull(self, value: Any) -> None:
+        """Bağlı öznitelik değişti (reactive ise): alanı güncelle; yazı alanına sayı yazı olarak gelir."""
+        current = self._bound_get()
+        if isinstance(current, str) and not isinstance(value, str):
+            value = "" if value is None else str(value)
+        if value == current:
+            return
+        self._pulling = True
+        try:
+            setattr(self, self.bind_value, value)
+        finally:
+            self._pulling = False
+
+    def _sync_bind(self) -> None:
+        """Alanın değeri değişti: bağlı özniteliğe yaz. Sayı tutan özniteliğe yazı sayıya çevrilir;
+        çevrilemezse öznitelik eski değerinde kalır."""
+        owner = self._bound_to
+        if owner is None or self._pulling:
+            return
+        value = self._bound_get()
+        old = getattr(owner, self.bind, None)
+        if isinstance(value, str) and isinstance(old, (int, float)) and not isinstance(old, bool):
+            try:
+                value = type(old)(value.strip().replace(",", ".") if isinstance(old, float) else value.strip())
+            except ValueError:
+                return
+        setattr(owner, self.bind, value)
+
     # ── zamanlayıcılar ve işçiler ─────────────────────────
 
     def set_interval(self, seconds: float, callback: Callable) -> Timer:
@@ -365,7 +471,7 @@ class Widget:
         """callback'i bir kez, `seconds` saniye sonra çağır."""
         return self.app._add_timer(seconds, callback, repeat=False, owner=self)
 
-    def run_worker(self, fn: Callable, *args, **kwargs):
+    def run_worker(self, fn: Callable, *args: Any, **kwargs: Any) -> asyncio.Future:
         """Bloklayan fonksiyonu ayrı thread'de, coroutine fonksiyonunu görev olarak çalıştır.
 
         Dönen nesne await edilebilir: `sonuç = await self.run_worker(tara, klasör)`.
@@ -490,7 +596,7 @@ class Widget:
     def _reveal(self, widget: Widget) -> None:
         """Torunlardan biri odak alınca çağrılır; kaydırılabilir kapsayıcılar onu görünür alana getirir."""
 
-    def context_menu(self, event=None) -> list | None:
+    def context_menu(self, event: MouseDown | None = None) -> list | None:
         """Sağ tıkta (ya da Shift+F10) açılacak menünün öğeleri; None ise ata bileşenlere bakılır.
 
             def context_menu(self, event):

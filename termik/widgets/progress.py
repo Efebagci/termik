@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..draw import Painter
 from ..reactive import reactive
 from ..widget import Widget
 
@@ -23,10 +24,10 @@ class ProgressBar(Widget):
     def advance(self, amount: float) -> None:
         self.progress = min(1.0, self.progress + amount)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return p.ch * 20, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         value = min(1.0, max(0.0, self.progress))
         room = c.w

@@ -215,3 +215,58 @@ def format_table(rows: Iterable, headers: Iterable | None = None) -> list[str]:
         lines.append("[faint]" + "  ".join("─" * w for w in widths) + "[/]")
     lines.extend(line(cells) for cells in body)
     return lines
+
+
+class WidgetValue:
+    """Pencerede form()'a verilen bileşenden okunan değer (terminaldeki cevaptan ayırt etmek için)."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: Any) -> None:
+        self.value = value
+
+
+def is_widget(value: Any) -> bool:
+    """Bileşen katmanından bir bileşen mi (pygame'i içe aktarmadan)."""
+    return hasattr(value, "bind_value") and hasattr(value, "compose")
+
+
+def widget_lines(widget: Any) -> list[str]:
+    """Terminalde gösterilecek hali: tablo hizalı satırlar, yazı kendisi, öbürleri kısa bir not."""
+    from ..markup import plain_text
+
+    columns, rows = getattr(widget, "columns", None), getattr(widget, "rows", None)
+    if isinstance(columns, list) and isinstance(rows, list):
+        headers = [plain_text(str(getattr(c, "label", c))) for c in columns]
+        return format_table([[plain_text(str(cell)) for cell in cells] for cells, _ in rows], headers)
+    text = getattr(widget, "text", None)
+    if isinstance(text, str):
+        return text.split("\n")
+    return [f"[faint]({type(widget).__name__} pencerede gösterilir)[/]"]
+
+
+class Shown:
+    """show()'un döndürdüğü tutamak: bileşenin metotları çağrılıp öznitelikleri okunup yazılabilir;
+    hepsi pencerenin kendi thread'inde yapılır, böylece script'ten güvenle güncellenir.
+
+        tablo = termik.show(ui.Table("Dosya", "Boyut"))
+        tablo.add_row("rapor.pdf", "1.2 MB")
+    """
+
+    __slots__ = ("_run", "widget")
+
+    def __init__(self, run: Any, widget: Any) -> None:
+        object.__setattr__(self, "_run", run)
+        object.__setattr__(self, "widget", widget)
+
+    def __getattr__(self, name: str) -> Any:
+        value = self._run(getattr, self.widget, name)
+        if callable(value) and not isinstance(value, type):
+            return lambda *args, **kwargs: self._run(value, *args, **kwargs)
+        return value
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self._run(setattr, self.widget, name, value)
+
+    def __repr__(self) -> str:
+        return f"<Shown {self.widget!r}>"

@@ -21,18 +21,20 @@ import time
 import traceback
 import weakref
 from concurrent.futures import Future
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import pygame
 
 from .. import clipboard, filedialog
 from ..app import App
+from ..draw import Painter
 from ..events import Click, Drop, Key, MouseDown, MouseMove
 from ..markup import Span, escape, plain_text
 from ..widget import Widget, action
 from ..widgets import Button, Checkbox, Input, OptionList, RadioSet, ScrollView
 from . import capture
-from .common import LABEL_CAP, SPINNER, STATE_ICONS, Progress, amount, counts, display_width, duration
+from .common import (LABEL_CAP, SPINNER, STATE_ICONS, Progress, Shown, WidgetValue, amount, counts,
+                     display_width, duration, widget_lines)
 
 MAX_LINES = 2000  # dökümde tutulan en çok çıktı satırı; eskiler atılır
 
@@ -64,7 +66,7 @@ class Transcript(ScrollView):
         if widget.region.h:  # henüz yerleşmediyse bir şey yapma; yeni soru zaten en alta kaydırır
             super()._reveal(widget)
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         if self.follow:
             self.scroll_y = 1 << 30  # aşağıda en alta sıkıştırılır
         kids = [c for c in self.children if c.display]
@@ -150,11 +152,11 @@ class OutputBlock(Widget):
             self._rows.extend(rows)
             self._counts.append(len(rows))
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         self._sync(p, width)
         return width, len(self._rows) * p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         self._sync(p, c.w)
         clip = p.surface.get_clip()
@@ -176,10 +178,10 @@ class RuleLine(Widget):
         super().__init__(padding=(0.5, 0, 0.25, 0))
         self.title = title
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return width, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         x = c.x
         if self.title:
@@ -188,6 +190,23 @@ class RuleLine(Widget):
 
     def plain(self) -> str:
         return f"── {plain_text(self.title)} ──" if self.title else "─" * 40
+
+
+class ShownEntry(Widget):
+    """show() ile dökümde gösterilen bileşen; dökümü kopyalarken yazı hali alınır."""
+
+    default_height = "auto"
+
+    def __init__(self, widget: Widget) -> None:
+        super().__init__(padding=(0.25, 0, 0.25, 0))
+        self.widget = widget
+
+    def compose(self) -> Iterable[Widget]:
+        yield self.widget
+
+    def plain(self) -> str:
+        from ..markup import plain_text
+        return "\n".join(plain_text(line) for line in widget_lines(self.widget))
 
 
 class LiveEntry(Widget):
@@ -211,10 +230,10 @@ class LiveEntry(Widget):
         self.app.note_label(self.progress.label)
         self.refresh()
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return width, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         prog = self.progress
@@ -323,17 +342,17 @@ class PromptEntry(Widget):
 
     # ── yerleşim ve çizim ────────────────────────────────
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         if self.answered:
             return 0, 0, 0, 0
         return round(p.row * 1.5), 0, p.row * (1 + self.extra_rows()), p.ch * 2
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         if self.answered:
             return width, p.row
         return super().measure(p, width)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         r, c = self.region, self.content
         if self.answered:
@@ -376,7 +395,7 @@ class AskPrompt(PromptEntry):
     def body(self) -> Widget:
         return self.input
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield self.input
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -452,7 +471,7 @@ class PathPrompt(AskPrompt):
     def extra_rows(self) -> int:
         return 1 if self.candidates else 0
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         super().render(p)
         if self.answered or not self.candidates:
             return
@@ -533,7 +552,7 @@ class ChoosePrompt(PromptEntry):
     def body(self) -> Widget:
         return self.list
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield self.list
 
     def on_option_list_selected(self, event: OptionList.Selected) -> None:
@@ -580,11 +599,11 @@ class ConfirmChoice(Widget):
         self._rects: dict[bool, pygame.Rect] = {}
         self._hover: bool | None = None
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         sizes = [p.button_size(label, True) for label in self.labels.values()]
         return sum(w for w, _ in sizes) + p.ch * 3, max(h for _, h in sizes)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         x = c.x
         for value in (True, False):
@@ -640,7 +659,7 @@ class ConfirmPrompt(PromptEntry):
     def body(self) -> Widget:
         return self.choice
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield self.choice
 
     def hints(self) -> str:
@@ -658,6 +677,8 @@ class _FormCheck(Checkbox):
 
 def _field_widget(spec: dict) -> Widget:
     """Alan tanımından bileşen: kısa seçim radyo, uzun seçim süzülebilir liste, onay kutusu, yazı alanı."""
+    if spec.get("widget") is not None:  # form()'a doğrudan verilen bileşen
+        return spec["widget"]
     kind, value = spec["kind"], spec["value"]
     if kind == "check":
         return _FormCheck("", bool(value))
@@ -674,27 +695,30 @@ class _FormRow(Widget):
 
     default_height = "auto"
 
-    def __init__(self, label: str, field: Widget, name: str | None = None) -> None:
+    def __init__(self, label: str, field: Widget, name: str | None = None, custom: bool = False) -> None:
         super().__init__()
         self.label, self.field, self.name = label, field, name
+        self.custom = custom  # form()'a doğrudan verilmiş bileşen: değeri kendi bind_value'sundan
         self.error = ""
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield self.field
 
     @property
     def raw(self) -> Any:
         f = self.field
+        if self.custom:
+            return WidgetValue(f._bound_get())
         if isinstance(f, Checkbox):
             return f.value
         if isinstance(f, (RadioSet, OptionList)):
             return f.index if f.index is not None else 0
         return f.value
 
-    def chrome(self, p) -> tuple[int, int, int, int]:
+    def chrome(self, p: Painter) -> tuple[int, int, int, int]:
         return 0, 0, 0, self.parent.label_width(p)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         if self.label:
             color = th.red if self.error else th.text if self.focus_within else th.dim
@@ -709,7 +733,8 @@ class FormPrompt(PromptEntry):
     def __init__(self, label: str, *, fields: list[dict]) -> None:
         super().__init__(label, gap=0.25)
         self.specs = fields
-        self.rows = [_FormRow(spec["label"], _field_widget(spec), spec["name"]) for spec in fields]
+        self.rows = [_FormRow(spec["label"], _field_widget(spec), spec["name"], spec.get("widget") is not None)
+                     for spec in fields]
         self.button = Button("Tamam", variant="primary", on_press=lambda _button: self.submit())
         self.summaries: list[tuple[str, str]] = []
 
@@ -717,11 +742,11 @@ class FormPrompt(PromptEntry):
     def body(self) -> Widget:
         return self.rows[0].field
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield from self.rows
         yield _FormRow("", self.button)
 
-    def label_width(self, p) -> int:
+    def label_width(self, p: Painter) -> int:
         return max(p.text.width(spec["label"]) for spec in self.specs) + p.ch * 3
 
     def hints(self) -> str:
@@ -769,12 +794,12 @@ class FormPrompt(PromptEntry):
         self.summaries = [(spec["label"], summary[spec["name"]]) for spec in self.specs]
         super().accept("")
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         if self.answered:
             return width, p.row * (len(self.summaries) + (1 if self.label else 0))
         return super().measure(p, width)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         if not self.answered:
             super().render(p)
             return
@@ -810,10 +835,10 @@ class StatusLine(Widget):
         super().__init__(padding=(0.5, 0, 0, 0))
         self._close: tuple[int, int] | None = None  # "⏎ kapat"ın x aralığı
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return width, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         app = self.app
         r, c = self.region, self.content
@@ -864,7 +889,7 @@ class FlowApp(App):
         self.label_chars = 0                    # özetlerde cevap sütunu, karakter
         self._lines = 0
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         yield self.transcript
         yield self.status_line
 
@@ -879,7 +904,7 @@ class FlowApp(App):
         elif self.outcome is None and self.active_prompt is None:
             self.status_line.refresh()  # dönen işaret
 
-    def answer_x(self, p, x: int, label: str) -> int:
+    def answer_x(self, p: Painter, x: int, label: str) -> int:
         """Özet satırında cevabın başladığı x: kısa etiketlerin cevapları hizalı bir sütun olur."""
         return x + max(self.label_chars * p.ch, p.text.width(label) + p.ch * 2)
 
@@ -917,6 +942,10 @@ class FlowApp(App):
 
     def add_rule(self, title: str) -> None:
         self._insert(RuleLine(title))
+
+    def add_widget(self, widget: Widget) -> None:
+        self.transcript.follow = True
+        self._insert(ShownEntry(widget))
 
     def add_live(self, entry: LiveEntry) -> None:
         self._insert(entry)
@@ -1162,6 +1191,26 @@ class WindowBackend:
 
     def table(self, lines: list[str]) -> None:
         self._post(self.app.write, "".join(line + "\n" for line in lines), False)
+
+    def show(self, widget: Widget) -> Shown:
+        self._post(self.app.add_widget, widget)
+        return Shown(self.call, widget)
+
+    def call(self, fn: Callable, *args, **kwargs) -> Any:
+        """fn'i pencere thread'inde çalıştır ve sonucunu bekle (pencere kapandıysa doğrudan çağır)."""
+        if threading.current_thread() is self.thread:
+            return fn(*args, **kwargs)
+        future: Future = Future()
+
+        def run() -> None:
+            try:
+                future.set_result(fn(*args, **kwargs))
+            except BaseException as exc:  # noqa: BLE001 (script'e iletilir)
+                future.set_exception(exc)
+
+        if not self._post(run):
+            return fn(*args, **kwargs)
+        return future.result()
 
     def prompt(self, what: str, label: str, **spec) -> _WindowPrompt:
         return _WindowPrompt(self, _PROMPTS[what](label, **spec))

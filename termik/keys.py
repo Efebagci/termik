@@ -37,7 +37,7 @@ def normalize(key: str) -> str:
     return "+".join([m for m in _MODS if m in mods] + [base])
 
 
-def from_event(event) -> str:
+def from_event(event: pygame.event.Event) -> str:
     """pygame KEYDOWN olayının tuş adı."""
     mod = event.mod
     ctrl, alt = bool(mod & pygame.KMOD_CTRL), bool(mod & pygame.KMOD_ALT)

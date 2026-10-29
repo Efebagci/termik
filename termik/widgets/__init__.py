@@ -3,6 +3,7 @@
 from .bars import Header, KeyBar, StatusBar
 from .button import Button
 from .canvas import Canvas
+from .form import Form
 from .image import Image
 from .input import Input
 from .log import Log
@@ -23,7 +24,7 @@ from .toggles import Checkbox, RadioSet
 from .tree import DirectoryTree, Tree, TreeNode
 
 __all__ = [
-    "Button", "Canvas", "Checkbox", "DirectoryTree", "Header", "Image", "Input", "KeyBar", "Label", "Log",
+    "Button", "Canvas", "Checkbox", "DirectoryTree", "Form", "Header", "Image", "Input", "KeyBar", "Label", "Log",
     "OptionList", "Panel", "ProgressBar", "RadioSet", "ScrollView", "Select", "Slider", "Sparkline", "Spinbox",
     "Split", "Static", "StatusBar", "Tab", "Table", "Tabs", "TextArea", "Tree", "TreeNode",
 ]

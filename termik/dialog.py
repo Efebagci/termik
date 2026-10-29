@@ -14,6 +14,7 @@ from typing import Any, Iterable
 
 import pygame
 
+from .draw import Painter
 from .events import Click
 from .widget import Row, Screen, Spacer, Widget, action
 from .widgets import Button, Input, Panel, Static
@@ -46,14 +47,14 @@ class Dialog(Screen):
         self.box: Panel | None = None
         self._default_button: Button | None = None
 
-    def compose_body(self):
+    def compose_body(self) -> Iterable[Widget]:
         """Butonların üstündeki içerik; alt sınıflar ezebilir."""
         if isinstance(self.body, Widget):
             yield self.body
         elif self.body:
             yield Static(self.body)
 
-    def compose(self):
+    def compose(self) -> Iterable[Widget]:
         with Panel(title=self.title or None, floating=True, gap=1) as box:
             self.box = box
             yield from self.compose_body()
@@ -70,14 +71,14 @@ class Dialog(Screen):
         if self._default_button is not None:
             self._default_button.focus()
 
-    def arrange(self, p) -> None:
+    def arrange(self, p: Painter) -> None:
         r = self.region
         w = min(r.w - p.ch * 6, round(p.ch * self.width))
         h = min(self.box.natural_size(p, w)[1], r.h - p.row * 2)
         y = r.y + max(p.row, (r.h - h) * 2 // 5)  # ortanın biraz üstü
         self.box._layout(p, pygame.Rect(r.x + (r.w - w) // 2, y, w, h))
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         p.shadow(self.box.frame)
 
     def choose(self, result: Any) -> None:
@@ -101,7 +102,7 @@ class PromptDialog(Dialog):
                          **kwargs)
         self.input = Input(value, placeholder=placeholder)
 
-    def compose_body(self):
+    def compose_body(self) -> Iterable[Widget]:
         if self.body:
             yield Static(self.body)
         yield self.input

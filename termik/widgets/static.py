@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..draw import Painter
 from ..reactive import reactive
 from ..widget import Widget
 
@@ -26,11 +27,11 @@ class Static(Widget):
     def _lines(self, p, width: int):
         return p.text.wrap(self.text, max(1, width) if self.wrap else _NO_WRAP)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         lines = self._lines(p, width)
         return max((p.text.width(line) for line in lines), default=0), len(lines) * p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         for i, line in enumerate(self._lines(p, c.w)):
             if not self.wrap:

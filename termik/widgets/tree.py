@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from typing import Any
+from typing import Any, Iterable
 
+from ..draw import Painter
 from ..events import Click, Message, MouseMove, MouseScroll
 from ..text import Style, escape, plain_text
 from ..widget import Widget, action
@@ -211,7 +212,7 @@ class Tree(Widget):
 
     # ── çizim ─────────────────────────────────────────────
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         lines = self.lines
@@ -372,7 +373,7 @@ class DirectoryTree(Tree):
 
     IGNORE = frozenset({"__pycache__", ".git", ".venv", "venv", "node_modules"})
 
-    def __init__(self, path: str, *, show_hidden: bool = False, patterns=None, dirs_only: bool = False,
+    def __init__(self, path: str, *, show_hidden: bool = False, patterns: Iterable[str] | None = None, dirs_only: bool = False,
                  **kwargs) -> None:
         path = os.path.abspath(os.path.expanduser(str(path)))
         super().__init__(f"[blue]{escape(os.path.basename(path) or path)}[/]", data=path, **kwargs)

@@ -16,12 +16,13 @@ açar; app.open_menu(öğeler, (x, y)) istenen yerde açar.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable, Iterable
 
 import pygame
 
 from . import keys
-from .events import Click, Key, MouseMove
+from .draw import Painter
+from .events import Click, Key, MouseDown, MouseMove
 from .fuzzy import fold
 from .markup import escape
 from .popup import Popup
@@ -73,13 +74,13 @@ def resolve(item: MenuItem, origin: Widget) -> tuple[Callable | None, str | None
         return item.action, item.key
     scope, _, name = item.action.rpartition(".")
     for node in origin._action_nodes(scope):
-        info = type(node)._actions.get(name)
+        info = node._actions_map().get(name)
         if info is not None and not node.disabled:
             return getattr(node, name), item.key or (info.keys[0] if info.keys else None)
     return None, item.key
 
 
-def run_entry(app, entry) -> None:
+def run_entry(app: Widget, entry: Any) -> None:
     """Menüden seçilen öğeyi çalıştır; menü kapandıktan sonra, odak eski yerindeyken çağrılır."""
     if isinstance(entry, tuple) and len(entry) == 3 and entry[1] is not None:
         app._call(entry[1])
@@ -128,14 +129,14 @@ class _MenuList(Widget):
     def _checks(self) -> bool:
         return any(entry is not None and entry[0].checked is not None for entry in self.entries)
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         labels = max((p.text.width(escape(hotkey(e[0].label)[0])) for e in self.entries if e), default=0)
         shortcuts = max((p.small.width(keys.display(e[2])) for e in self.entries if e and e[2]), default=0)
         lead = p.ch * (3 if self._checks() else 1)
         w = lead + labels + (p.ch * 4 + shortcuts if shortcuts else p.ch * 2)
         return max(w, p.ch * 16), sum(p.row // 2 if e is None else p.row for e in self.entries)
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         c = self.content
         checks = self._checks()
@@ -215,13 +216,13 @@ class MenuPopup(Popup):
     """Açılır menü. Seçilen öğe (öğe, fonksiyon, kısayol) olarak, menü çubuğundan açıldıysa komşu menüye
     geçiş ("switch", ±1) ya da ("open", sıra) olarak döner; Esc ve dışarı tık None döndürür."""
 
-    def __init__(self, items: list[MenuItem | None], at, *, origin: Widget, bar: MenuBar | None = None,
+    def __init__(self, items: list[MenuItem | None], at: tuple[int, int] | pygame.Rect, *, origin: Widget, bar: MenuBar | None = None,
                  index: int | None = None) -> None:
         super().__init__(at)
         self.list = _MenuList(items, origin)
         self.bar, self.index = bar, index
 
-    def compose_body(self):
+    def compose_body(self) -> Iterable[Widget]:
         yield self.list
 
     def on_mount(self) -> None:
@@ -235,7 +236,7 @@ class MenuPopup(Popup):
         if i is not None and i != self.index:
             self.dismiss(("open", i))
 
-    def outside(self, event) -> None:
+    def outside(self, event: MouseDown) -> None:
         i = self._title_at(event.pos)
         self.dismiss(("open", i) if i is not None and i != self.index else None)
 
@@ -259,10 +260,10 @@ class MenuBar(Widget):
         if self.window._menubar is self:
             self.window._menubar = None
 
-    def measure(self, p, width: int) -> tuple[int, int]:
+    def measure(self, p: Painter, width: int) -> tuple[int, int]:
         return width, p.row
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         th = p.theme
         r = self.region
         p.round_rect(r, mix(th.bg, th.raised, 0.6), radius=0)
@@ -281,7 +282,7 @@ class MenuBar(Widget):
             self._rects.append(rect)
             x = rect.right
 
-    def title_at(self, pos) -> int | None:
+    def title_at(self, pos: tuple[int, int]) -> int | None:
         return next((i for i, rect in enumerate(self._rects) if rect.collidepoint(pos)), None)
 
     def open(self, index: int) -> None:

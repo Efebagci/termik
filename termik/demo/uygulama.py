@@ -180,10 +180,14 @@ class BackupApp(ui.App):
     TITLE = "termik · demo"
     SIZE = (1280, 800)
     running = ui.reactive(False)
+    source = ui.reactive("")          # bind="source": kaynak klasör alanı
+    target = ui.reactive("D:\\Yedek")  # bind="target": hedef klasör alanı
+    keep = ui.reactive(5)             # bind="keep": saklanacak yedek sayısı
 
     def __init__(self, folder: str | os.PathLike | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder = Path(folder or os.getcwd()).resolve()
+        self.source = str(self.folder)
         self._spin = None
         self._frame = 0
         self._done = (0, 0)
@@ -211,24 +215,19 @@ class BackupApp(ui.App):
             yield ui.Panel(FileTree(self.folder, id="tree"), title="Dosyalar", id="files")
             with ui.Column(gap=0.5):
                 with ui.Panel(title="Yedekleme", info="[faint]tam yedek[/]", gap=0.5, id="form"):
-                    yield ui.Input(str(self.folder), label="Kaynak klasör", id="src")
-                    yield ui.Input("D:\\Yedek", label="Hedef klasör", id="dst")
-                    with ui.Column(padding=(0, 0, 0, 1.5)):
+                    with ui.Form():  # etiketler solda hizalı; bind= alanı uygulamanın özniteliğine bağlar
+                        yield ui.Input(label="Kaynak klasör", bind="source", id="src")
+                        yield ui.Input(label="Hedef klasör", bind="target", id="dst")
                         yield ui.RadioSet("Tam", "Artımlı", label="Mod", id="mode")
-                        with ui.Row():
-                            yield ui.Label("[dim]Seçenekler[/]", width=12)
+                        with ui.Row(label="Seçenekler", gap=1):
                             yield ui.Checkbox("Sıkıştır", True, id="zip")
                             yield ui.Checkbox("Şifrele", id="enc")
-                        with ui.Row(gap=1):
-                            yield ui.Label("[dim]Düzey[/]", width=11)
-                            yield ui.Slider(6, min=0, max=9, id="level",
-                                            tooltip="Sıkıştırma düzeyi: 0 en hızlısı, 9 en küçük dosyayı verir")
-                        with ui.Row(gap=1):
-                            yield ui.Label("[dim]Zamanlama[/]", width=11)
-                            yield ui.Select(["Elle", "Her gün 22:00", "Her hafta", "Her ay"], id="schedule")
-                        with ui.Row(gap=1):
-                            yield ui.Label("[dim]Sakla[/]", width=11)
-                            yield ui.Spinbox(5, min=1, max=50, id="keep",
+                        yield ui.Slider(6, min=0, max=9, label="Düzey", id="level",
+                                        tooltip="Sıkıştırma düzeyi: 0 en hızlısı, 9 en küçük dosyayı verir")
+                        yield ui.Select(["Elle", "Her gün 22:00", "Her hafta", "Her ay"], label="Zamanlama",
+                                        id="schedule")
+                        with ui.Row(label="Sakla", gap=1):
+                            yield ui.Spinbox(min=1, max=50, bind="keep", id="keep",
                                              tooltip="En çok kaç yedek saklansın; eskiler silinir")
                             yield ui.Label("[dim]yedek[/]")
                         yield ui.Static(IDLE, id="status")
@@ -282,7 +281,7 @@ class BackupApp(ui.App):
         if self.running:  # iptal edilmiş olsa bile önceki iş bitmeden yenisi başlamaz
             return
         bar = self.query_one("#bar", ui.ProgressBar)
-        src = self.query_one("#src", ui.Input).value
+        src = self.source
         mode = self.query_one("#mode", ui.RadioSet).value.lower()
         self._done, self._cancel = (0, 0), False
         self.running = True
@@ -305,8 +304,7 @@ class BackupApp(ui.App):
                 self._done = (i, count)
                 bar.progress = i / count
             status = "[green]✓[/]"
-            keep = self.query_one("#keep", ui.Spinbox).value
-            self.log.ok(f"yedekleme tamamlandı 🎉 [dim]· son {keep} yedek saklanır[/]")
+            self.log.ok(f"yedekleme tamamlandı 🎉 [dim]· son {self.keep} yedek saklanır[/]")
             self.notify("Yedekleme tamamlandı 🎉", "ok")
         finally:
             seconds = round(time.monotonic() - started)
@@ -336,14 +334,14 @@ class BackupApp(ui.App):
 
     @ui.action("Kaynak klasörü seç…", key="ctrl+o", hint="kaynak")
     async def choose_source(self) -> None:
-        folder = await self.ask_folder("Yedeklenecek klasör", folder=self.query_one("#src", ui.Input).value)
+        folder = await self.ask_folder("Yedeklenecek klasör", folder=self.source)
         if folder:
             self.use_source(str(folder))
 
     @ui.action("Hedef klasörü seç…")
     async def change_target(self) -> None:
-        dst = self.query_one("#dst", ui.Input).value
-        folder = await self.ask_folder("Yedeklerin yazılacağı klasör", folder=dst if os.path.isdir(dst) else None)
+        folder = await self.ask_folder("Yedeklerin yazılacağı klasör",
+                                       folder=self.target if os.path.isdir(self.target) else None)
         if folder:
             self.use_target(str(folder))
 
@@ -455,7 +453,7 @@ class BackupApp(ui.App):
         """Hedef klasörün diskinin doluluğu: Canvas'ta halka gösterge."""
         canvas = self.query_one("#disk", ui.Canvas)
         canvas.clear()
-        target = self.query_one("#dst", ui.Input).value
+        target = self.target
         path = next((p for p in (target, os.path.dirname(target)) if p and os.path.isdir(p)), str(self.folder))
         try:
             usage = shutil.disk_usage(path)
@@ -470,17 +468,13 @@ class BackupApp(ui.App):
         canvas.text(7, 0.5, f"[bold]{ui.escape(drive)}[/] [{color}]%{used * 100:.0f}[/] dolu")
         canvas.text(7, 1.5, f"[dim]{human(usage.free)} boş · {human(usage.total)}[/]")
 
-    def _set_input(self, selector: str, path: str, what: str) -> None:
-        field = self.query_one(selector, ui.Input)
-        field.value = path
-        field.cursor_position = len(path)
-        self.log.info(f"{what}: [accent]{ui.escape(path)}[/]")
-
     def use_source(self, path: str) -> None:
-        self._set_input("#src", path, "kaynak")
+        self.source = path  # bağlı alan da güncellenir
+        self.log.info(f"kaynak: [accent]{ui.escape(path)}[/]")
 
     def use_target(self, path: str) -> None:
-        self._set_input("#dst", path, "hedef")
+        self.target = path
+        self.log.info(f"hedef: [accent]{ui.escape(path)}[/]")
         self._draw_disk()
 
     def copy_path(self, path: str) -> None:

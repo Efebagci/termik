@@ -7,11 +7,13 @@ from typing import Iterable
 
 import pygame
 
+from ..draw import Painter
 from ..events import Click, Message, MouseDown, MouseMove
 from ..widget import Widget
-from .image import load_image
+from .image import ImageSource, load_image
 
 Point = tuple[float, float]
+ColorSpec = str | tuple[int, int, int] | None  # tema adı ("accent", "green"), "#ff8800" ya da (r, g, b)
 
 
 class Canvas(Widget):
@@ -45,7 +47,7 @@ class Canvas(Widget):
             super().__init__()
             self.canvas, self.x, self.y = canvas, x, y
 
-    def __init__(self, *, background: str | tuple | None = None, **kwargs) -> None:
+    def __init__(self, *, background: ColorSpec = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.background = background  # None: kabın zemini
         self._ops: dict[int, tuple] = {}
@@ -64,31 +66,34 @@ class Canvas(Widget):
         self.refresh()
         return handle
 
-    def line(self, x1: float, y1: float, x2: float, y2: float, *, color="text", width: int = 1,
+    def line(self, x1: float, y1: float, x2: float, y2: float, *, color: ColorSpec = "text", width: int = 1,
              px: bool = False) -> int:
         """Çizgi; width piksel kalınlığıdır (1 ise kenarları yumuşatılır)."""
         return self._add("line", px, color, [(x1, y1), (x2, y2)], width)
 
-    def lines(self, points: Iterable[Point], *, color="text", width: int = 1, closed: bool = False,
+    def lines(self, points: Iterable[Point], *, color: ColorSpec = "text", width: int = 1, closed: bool = False,
               px: bool = False) -> int:
         """Noktaları sırayla birleştiren kırık çizgi (grafikler için)."""
         return self._add("lines", px, color, list(points), width, closed)
 
-    def rect(self, x: float, y: float, w: float, h: float, *, color=None, fill=None, width: int = 1,
+    def rect(self, x: float, y: float, w: float, h: float, *, color: ColorSpec = None, fill: ColorSpec = None,
+             width: int = 1,
              radius: int = 0, px: bool = False) -> int:
         """Dikdörtgen: fill içini doldurur, color çerçevesini çizer (ikisi de yoksa color="text")."""
         if color is None and fill is None:
             color = "text"
         return self._add("rect", px, color, [(x, y), (x + w, y + h)], fill, width, radius)
 
-    def circle(self, x: float, y: float, r: float, *, color=None, fill=None, width: int = 1,
+    def circle(self, x: float, y: float, r: float, *, color: ColorSpec = None, fill: ColorSpec = None,
+               width: int = 1,
                px: bool = False) -> int:
         """Daire: merkezi (x, y), yarıçapı r karakter genişliği (px=True ise piksel)."""
         if color is None and fill is None:
             color = "text"
         return self._add("circle", px, color, [(x, y)], fill, width, r)
 
-    def arc(self, x: float, y: float, r: float, start: float, end: float, *, color="text", width: int = 1,
+    def arc(self, x: float, y: float, r: float, start: float, end: float, *, color: ColorSpec = "text",
+            width: int = 1,
             px: bool = False) -> int:
         """Yay: merkezi (x, y), yarıçapı r (karakter genişliği); açılar derece, 0 sağda, saat yönünün
         tersine artar (90 yukarı). width piksel kalınlığıdır: kalın yaylar dolu halka dilimi olarak
@@ -99,16 +104,17 @@ class Canvas(Widget):
         """
         return self._add("arc", px, color, [(x, y)], r, start, end, width)
 
-    def polygon(self, points: Iterable[Point], *, color=None, fill=None, width: int = 1, px: bool = False) -> int:
+    def polygon(self, points: Iterable[Point], *, color: ColorSpec = None, fill: ColorSpec = None, width: int = 1,
+                px: bool = False) -> int:
         if color is None and fill is None:
             color = "text"
         return self._add("polygon", px, color, list(points), fill, width)
 
-    def text(self, x: float, y: float, markup: str, *, color=None, px: bool = False) -> int:
+    def text(self, x: float, y: float, markup: str, *, color: ColorSpec = None, px: bool = False) -> int:
         """Markup yazı; (x, y) satırın sol üstü."""
         return self._add("text", px, color, [(x, y)], markup)
 
-    def image(self, x: float, y: float, source, *, w: float | None = None, h: float | None = None,
+    def image(self, x: float, y: float, source: ImageSource, *, w: float | None = None, h: float | None = None,
               px: bool = False) -> int:
         """Resim (dosya yolu ya da Surface); w ve h verilirse o boyuta ölçeklenir."""
         return self._add("image", px, None, [(x, y)], load_image(source), w, h)
@@ -149,7 +155,7 @@ class Canvas(Widget):
 
     # ── çizim ─────────────────────────────────────────────
 
-    def render(self, p) -> None:
+    def render(self, p: Painter) -> None:
         c = self.content
         if self.background is not None:
             p.surface.fill(self._color(p, self.background), c)
