@@ -115,7 +115,7 @@ class Widget:
                  width: SizeSpec = None, height: SizeSpec = None, min_width: SizeSpec = None,
                  max_width: SizeSpec = None, min_height: SizeSpec = None, max_height: SizeSpec = None,
                  padding: PaddingSpec = 0, gap: SizeSpec = 0, disabled: bool = False, display: bool = True, tooltip: str | None = None,
-                 label: str | None = None, bind: str | None = None) -> None:
+                 label: str | None = None, bind: str | None = None, persist: bool | None = None) -> None:
         if bind is not None and type(self).bind_value is None:
             raise TypeError(f"{type(self).__name__} bind= almaz (bağlanacak bir değeri yok)")
         self.id = id
@@ -143,6 +143,7 @@ class Widget:
         self._bound_to: Widget | None = None
         self._pulling = False
         self._in_form = False     # Form'un doğrudan çocuğu: etiketini Form çizer
+        self.persist = persist    # SAVE_STATE açıkken bağlı değeri saklansın mı (None: bileşen karar verir)
         for child in children:
             self._add_child(child)
 
@@ -429,6 +430,11 @@ class Widget:
         binders = owner.__dict__.get("_binders", {}).get(self.bind) if owner is not None else None
         if binders and self in binders:
             binders.remove(self)
+
+    @property
+    def _persists(self) -> bool:
+        """Durum kaydına girer mi: persist=False değilse (parola alanı ancak persist=True ile)."""
+        return self.persist if self.persist is not None else not getattr(self, "password", False)
 
     def _bound_get(self) -> Any:
         return getattr(self, self.bind_value)

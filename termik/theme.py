@@ -85,6 +85,7 @@ class Theme:
     spin: str = "bracket"       # bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾
     split: str = "line"         # line ince çizgi ve ⋮ tutamak · bar dolu sütun · hidden yalnızca fare gelince
     form_label: str = "left"    # left etiketler solda hizalı · top alanın üstünde
+    chart: str = "smooth"       # smooth yumuşak çizgiler · braille ⣀⡠ noktaları · blocks ▁▃▇ blokları
 
     def color(self, name: str) -> Color | None:
         """Markup'taki renk adını çöz: 'green', 'accent', '#ff8800'… Bilinmiyorsa None."""
@@ -178,6 +179,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "spin": ("bracket", "arrows", "stacked"),
     "split": ("line", "bar", "hidden"),
     "form_label": ("left", "top"),
+    "chart": ("smooth", "braille", "blocks"),
 }
 
 

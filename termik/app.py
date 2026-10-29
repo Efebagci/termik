@@ -20,7 +20,9 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
+import json
 import os
+import re
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -808,13 +810,23 @@ class Window(Widget):
 
 
 class App(Window):
-    """Uygulamanın kökü ve ana penceresi. compose() ile arayüzü kur, run() ile çalıştır."""
+    """Uygulamanın kökü ve ana penceresi. compose() ile arayüzü kur, run() ile çalıştır.
+
+    SAVE_STATE = True (ya da App(save_state=True)) kapanırken pencerenin yerini ve boyutunu, kimliği
+    (id=) olan Split'lerin oranlarını ve Tabs'ların açık sekmesini, bind= ile bağlı alanların
+    değerlerini saklar; uygulama yeniden açılınca hepsi geri gelir. persist=False bir alanı dışarıda
+    tutar (parola alanları kendiliğinden tutulmaz). Dosya: ayar klasöründe durum/<ad>.json
+    (state_path); ad STATE_NAME'den, yoksa sınıfın ya da başlığın adından. run_test() altında durum
+    yalnızca save_state=True açıkça verilirse okunup yazılır: testler kullanıcının durumuna dokunmaz.
+    """
 
     SIZE = (1200, 760)
+    SAVE_STATE = False
+    STATE_NAME: str | None = None
 
     def __init__(self, *, theme: str | None = None, look: str | None = None, density: str | None = None,
                  title: str | None = None, icon: str | Path | pygame.Surface | None = None,
-                 dialogs: str | None = None, **tokens) -> None:
+                 dialogs: str | None = None, save_state: bool | None = None, **tokens) -> None:
         """theme, look, density, dialogs ve biçim belirteçleri verilmezse kullanıcının tercihleri (ayar
         dosyası, TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa okyanus · terminal · rahat
         ve işletim sisteminin dosya diyalogları."""
@@ -826,6 +838,8 @@ class App(Window):
         self._density = density or prefs.get("density", "rahat")
         self._tokens = {**prefs["tokens"], **tokens}
         self.dialogs = dialogs or prefs.get("dialogs", "native")  # dosya diyalogları: native · builtin
+        self.save_state = self.SAVE_STATE if save_state is None else save_state
+        self._state_forced = save_state is True  # run_test() altında yalnızca açıkça istenirse
         self._painter: Painter | None = None
         self._app = self
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -1145,7 +1159,12 @@ class App(Window):
         self._windows = [self]
         self._focus_window = self
         self._running = True
-        self._create(self, size or self.SIZE, place=None if headless else _saved_place())
+        self.save_state = self.save_state and (not headless or self._state_forced)  # testler kullanıcı durumuna dokunmasın
+        state = self._read_state() if self.save_state else {}
+        place = None if headless else _saved_place() or _on_screen(state.get("pencere"))
+        self._create(self, size or self.SIZE, place=place)
+        if state:
+            self._apply_state(state)
 
     def _save_place(self) -> None:
         """`termik çalıştır --izle` altında pencerenin yerini ve boyutunu yaz: yeniden açılınca aynı yerde."""
@@ -1158,7 +1177,80 @@ class App(Window):
             except (OSError, pygame.error):
                 pass
 
+    # ── durum kaydı ───────────────────────────────────────
+
+    @property
+    def state_path(self) -> Path:
+        """Durum dosyasının yeri (dosya olmayabilir)."""
+        name = self.STATE_NAME or (type(self).__name__ if type(self) is not App else self.title)
+        slug = re.sub(r"\W+", "-", name.strip()).strip("-").lower() or "uygulama"
+        return settings.config_path().parent / "durum" / f"{slug}.json"
+
+    def collect_state(self) -> dict[str, Any]:
+        """Saklanacak durum: pencere, Split oranları, açık sekmeler, bağlı değerler."""
+        from .widgets import Split, Tabs
+
+        state: dict[str, Any] = {}
+        if self._native is not None and not self._headless:
+            (x, y), (w, h) = self._native.position, self._native.size
+            state["pencere"] = [x, y, w, h]
+        splits = {w.id: w.fractions for w in self.query(Split) if w.id and w.fractions}
+        tabs = {w.id: w.active for w in self.query(Tabs) if w.id}
+        values = {}
+        for widget in self.walk():
+            if widget.bind and widget._bound_to is not None and widget._persists:
+                value = getattr(widget._bound_to, widget.bind, None)
+                if isinstance(value, (str, int, float, bool, list)) or value is None:
+                    values[widget.bind] = value
+        for key, part in (("split", splits), ("sekme", tabs), ("değerler", values)):
+            if part:
+                state[key] = part
+        return state
+
+    def write_state(self) -> Path | None:
+        """Durumu şimdi yaz (kapanırken kendiliğinden yazılır); yazılamazsa None."""
+        path = self.state_path
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(self.collect_state(), ensure_ascii=False, indent=2), encoding="utf-8")
+        except (OSError, TypeError, ValueError):
+            return None
+        return path
+
+    def forget_state(self) -> None:
+        """Saklanan durumu sil: bir sonraki açılış varsayılanlarla olur."""
+        try:
+            self.state_path.unlink()
+        except OSError:
+            pass
+
+    def _read_state(self) -> dict[str, Any]:
+        try:
+            state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return state if isinstance(state, dict) else {}
+
+    def _apply_state(self, state: dict[str, Any]) -> None:
+        from .widgets import Split, Tabs
+
+        for split in self.query(Split):
+            fractions = state.get("split", {}).get(split.id)
+            if split.id and isinstance(fractions, list) and len(fractions) == len(split._kids()):
+                split.set_fractions(fractions)
+        for tabs in self.query(Tabs):
+            active = state.get("sekme", {}).get(tabs.id)
+            if tabs.id and isinstance(active, int) and 0 <= active < len(tabs.tabs):
+                tabs.active = active
+        values = state.get("değerler", {})
+        for widget in list(self.walk()):
+            if widget.bind in values and widget._bound_to is not None and widget._persists:
+                setattr(widget._bound_to, widget.bind, values[widget.bind])
+                widget._bind_pull(values[widget.bind])
+
     def _shutdown(self) -> None:
+        if self.save_state and self._native is not None:
+            self.write_state()
         self._running = False
         for task in list(self._tasks):
             task.cancel()
@@ -1188,6 +1280,14 @@ class App(Window):
         wait = 1 / 60 if now < self._active_until else 1 / 30
         due = min((t.due for t in self._all_timers if t.active), default=now + wait)
         return max(0.001, min(wait, due - now))
+
+
+def _on_screen(place: Any) -> tuple[int, int, int, int] | None:
+    """Saklanan pencere yeri hâlâ bir ekranın içindeyse (ekran çıkarılmış olabilir) onu döndür."""
+    if not (isinstance(place, list) and len(place) == 4 and all(isinstance(v, int) for v in place)):
+        return None
+    x, y, w, h = place
+    return (x, y, w, h) if w > 0 and h > 0 and system.on_screen(x, y, w, h) else None
 
 
 def _saved_place() -> tuple[int, int, int, int] | None:

@@ -2,14 +2,17 @@
 
 [![PyPI](https://img.shields.io/pypi/v/termik)](https://pypi.org/project/termik/)
 [![Python](https://img.shields.io/pypi/pyversions/termik)](https://pypi.org/project/termik/)
-[![Lisans: MIT](https://img.shields.io/pypi/l/termik)](LICENSE)
+[![Lisans: MIT](https://img.shields.io/pypi/l/termik)](https://github.com/Efebagci/termik/blob/main/LICENSE)
 
 CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla. pygame-ce üzerinde çalışan bir Python
 arayüz kütüphanesi.
 
-![demo](docs/ekran/demo-calisiyor.png)
+**Belgeler:** [efebagci.github.io/termik](https://efebagci.github.io/termik/) · [bileşen galerisi](https://efebagci.github.io/termik/bilesenler.html) ·
+[tarifler](https://efebagci.github.io/termik/tarifler.html) · [kaynak kod](https://github.com/Efebagci/termik)
 
-> **Durum: v0.9.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
+![demo](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/demo-calisiyor.png)
+
+> **Durum: v0.10.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
@@ -19,9 +22,10 @@ arayüz kütüphanesi.
 > yöneticisinden sürükleyip bırakmak çalışır, pencere simgesi temanın rengini alır. Kısa yazım:
 > etiketli formlar (`ui.Form` + `label=`), alanı özniteliğe bağlama (`bind=`), sınıf yazmadan
 > uygulama (`@app.compose`, `@app.action`), `termik yeni` iskeleti ve kaydettikçe yeniden açan
-> `termik çalıştır --izle`.
+> `termik çalıştır --izle`. Çizgi, alan ve çubuk grafikleri (`ui.Chart`, akışta `termik.chart`), kapanınca
+> pencereyi ve değerleri hatırlayan durum kaydı (`SAVE_STATE = True`).
 
-![komut paleti](docs/ekran/demo-palet.png)
+![komut paleti](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/demo-palet.png)
 
 ## Kurulum
 
@@ -108,7 +112,7 @@ app.run()
 Pencere bir terminal oturumu gibi alt alta akan bir dökümdür. Cevaplanan soru tek satırlık özete
 döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en altta ve odaktadır.
 
-![akış: seçim](docs/ekran/akis-secim.png)
+![akış: seçim](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/akis-secim.png)
 
 | Fonksiyon | İş |
 |---|---|
@@ -116,6 +120,8 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 | `ok`, `info`, `warn`, `error` | `✓ • ⚠ ✗` simgeli satır |
 | `rule("Başlık")` | `── Başlık ──────` ayraç |
 | `table(satırlar, headers=None)` | Hizalı tablo; sözlük listesinde başlıklar anahtarlardan gelir, sayılar sağa yaslanır |
+| `chart(veri, **seçenekler)` | Grafik (`ui.Chart`'ın seçenekleri); canlı güncellemek için tutamak döndürür: `cpu.append("cpu", 42)`. Terminalde ▁▃▇ bloklarıyla |
+| `show(bileşen)` | Bileşen katmanından bir bileşeni dökümde gösterir; tutamağın metotları pencerenin thread'inde çalışır |
 | `ask(soru, default=, type=, validate=, password=)` | Yazı sorar. `type=int` çevirir, `validate` denetler; hatalı girişte soru hatayla tekrarlanır. `default` alanı dolu ve seçili getirir, türü de ondan çıkar (`default=8080` → `int`) |
 | `ask_path(soru, kind="dir", must_exist=True)` | `Path` döndürür. Tab tamamlar (birden çok aday varsa aralarında döner), Ctrl+O klasör ağacını açar; `~`, ortam değişkenleri ve kopyalanan yolların tırnakları işlenir |
 | `choose(soru, seçenekler, default=)` | Liste, `(etiket, değer)` çiftleri ya da sözlük alır, değeri döndürür; yazdıkça bulanık süzülür (`artim` → "Artımlı") |
@@ -128,7 +134,7 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 | `setup(title=, theme=, look=, density=, keep_open=, mode=, capture=, …)` | İlk çağrıdan önce: pencere başlığı, görünüm ve biçim belirteçleri (bileşen katmanındakilerle aynı), yakalama |
 | `restyle(theme=, look=, density=, …)` | Görünümü çalışırken değiştirir |
 
-![akış: ilerleme](docs/ekran/akis-ilerleme.png)
+![akış: ilerleme](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/akis-ilerleme.png)
 
 **Nasıl çalışır:**
 
@@ -144,7 +150,7 @@ döner, özetlerin cevapları hizalı bir sütun oluşturur. Etkin soru hep en a
 - Pencerede ctrl+p komut paleti (tema, yoğunluk), ctrl+shift+c dökümü panoya kopyalar. Dökümde
   en çok 2000 çıktı satırı tutulur.
 
-![akış: gözat](docs/ekran/akis-gozat.png)
+![akış: gözat](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/akis-gozat.png)
 
 **Form.** Birkaç alanı tek ekranda sorar; değerin türü alanı belirler:
 
@@ -165,7 +171,7 @@ choices=[…])`. Tab alanlar arasında gezer, ⏎ sonraki alana geçer (sonuncus
 hemen gönderir. Hatalı alanların etiketi kırmızıya döner, odak ilkine gider ve form yeniden sorulur.
 Cevaplanınca başlığın altında alan başına bir özet satırı kalır. Terminalde alanlar sırayla sorulur.
 
-![akış: form](docs/ekran/akis-form.png)
+![akış: form](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/akis-form.png)
 
 **Script'in kendi `print()` ve `input()`'u.** Pencere açıkken (varsayılan olarak) script'in
 `print()`'leri, `sys.stdout` ve `sys.stderr`'e yazılanlar dökümde de görünür; konsol varsa oraya da
@@ -223,7 +229,7 @@ Modül fonksiyonları ilk kullanımda kurulan varsayılan oturuma gider. Ayrı b
 `termik.flow.Session(...)` ile kurulur ve aynı metotları taşır; testlerde
 `Session(mode="window", headless=True)` pencereyi görünmez açar.
 
-![akış: bitti](docs/ekran/akis-bitti.png)
+![akış: bitti](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/akis-bitti.png)
 
 ## Temel kavramlar
 
@@ -296,10 +302,35 @@ kurar, ayrıntılı yol (`query_one`, `on_..._changed`, sınıflar, `@action`) o
 - **Kaydettikçe yeniden aç.** `termik çalıştır dosya.py --izle` klasördeki `.py` dosyaları değişince
   programı yeniden başlatır; pencere bir önceki yerinde ve boyutunda açılır. Pencere kapatılınca
   izleme de biter; program hatayla biterse düzeltilip kaydedilmesi beklenir.
+- **Durum kaydı.** Sınıfta `SAVE_STATE = True` (ya da `App(save_state=True)`): kapanırken pencerenin yeri ve
+  boyutu, kimliği (`id=`) olan `Split`'lerin oranları, `Tabs`'ların açık sekmesi ve `bind=` ile bağlı
+  alanların değerleri saklanır, açılınca geri gelir. `persist=False` bir alanı dışarıda tutar; parola
+  alanları kendiliğinden tutulmaz. Dosya ayar klasöründe `durum/<ad>.json` (`app.state_path`);
+  `app.write_state()` hemen yazar, `app.forget_state()` siler. Saklanan pencere yeri artık hiçbir
+  ekranda değilse (monitör çıkarılmış) yok sayılır.
 - **Editör desteği.** Açık API'nin tamamında tip ipuçları var (`SizeSpec`, `ColorSpec`, `ImageSource`
   gibi adlarla); VS Code ve PyCharm'da tamamlama ve parametre önerileri çalışır.
 
-![sınıf yazmadan kurulmuş araç: Form, bind ve düğme kısayolu](docs/ekran/kolay-arac.png)
+![sınıf yazmadan kurulmuş araç: Form, bind ve düğme kısayolu](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/kolay-arac.png)
+
+## Grafikler
+
+```python
+cpu = ui.Chart({"cpu": [], "bellek": []}, title="Kullanım %", y_min=0, y_max=100, max_points=60)
+cpu.append("cpu", 42)                                  # canlı veri: en yenisi sağda
+ui.Chart({"Ocak": 12, "Şubat": 30}, kind="bar")         # kategoriler
+ui.Chart([3, 5, 4, 8], kind="area", x=["pzt", "sal", "çar", "per"])
+```
+
+Eksen değerleri yuvarlak adımlarla seçilir, sayılar Türkçe biçimde yazılır (`12.400`, `0,25`). Birden çok
+seri ya da adlı seriler varken gösterge başlığın sağında durur; fare grafiğin üstündeyken en yakın
+noktanın bütün serilerdeki değerleri bir kutuda görünür. Akış API'sinde `termik.chart(...)` aynı
+grafiği dökümde gösterir ve script'ten güncellenen bir tutamak döndürür; terminalde blok grafik basar
+(pygame kurulu olmasa da).
+
+![grafikler: çizgi, alan, çubuk, yan yana çubuk](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/grafik.png)
+
+![aynı grafikler braille biçiminde](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/grafik-braille.png)
 
 ## Pencereler ve sistem
 
@@ -358,11 +389,11 @@ class Uygulama(ui.App):
   tema değişince rengi de değişir. Windows'ta başlık çubuğu ve görev çubuğu boyutları ayrı ayrı
   çizilir. Kendi simgen için `App(icon="simge.png")`, sınıfta `ICON = …` ya da `window.set_icon(…)`.
 
-![ayarlar penceresi](docs/ekran/pencere-ayarlar.png)
+![ayarlar penceresi](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/pencere-ayarlar.png)
 
-![termik gezgini: kaydet](docs/ekran/pencere-gezgin.png)
+![termik gezgini: kaydet](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/pencere-gezgin.png)
 
-![pencere simgesi, her temada](docs/ekran/pencere-simgeleri.png)
+![pencere simgesi, her temada](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/pencere-simgeleri.png)
 
 ## Bileşenler
 
@@ -382,6 +413,7 @@ class Uygulama(ui.App):
 | `Tree`, `DirectoryTree` | Açılır kapanır ağaç: `├─ └─` dalları, ←/→ aç-kapa, tembel yükleme (`load_children`); klasör ağacı alt klasörleri ilk açılışta okur |
 | `Table` | Sabit başlıklı tablo: satır imleci, başlığa tıklayınca doğal sıralama, çift tık/Enter ile seçim |
 | `Sparkline` | Akan değerler için mini grafik; etiket ve son değer |
+| `Chart` | Çizgi, alan ve çubuk grafiği: veri liste, `{ad: liste}` ya da `{etiket: sayı}`; eksenler yuvarlak adımlarla, noktalı ızgara, gösterge, fareyle en yakın noktanın değerleri; `append`/`max_points` ile canlı veri; `y_min`, `y_max`, `y_format`, `x=` etiketleri |
 | `Image` | Resim (dosya yolu ya da `pygame.Surface`): `fit="contain"` sığdırır, `cover` kırparak doldurur, `stretch` esnetir, `none` asıl boyut; ince çerçeve, `caption=`; açılamayan resim yerinde hata yazar; `source=` ile değişir |
 | `Canvas` | Serbest çizim: `line`, `lines`, `rect`, `circle`, `arc`, `polygon`, `text`, `image` çağrıları saklanır ve kendiliğinden yeniden çizilir; birim karakter/satır (`px=True` piksel); renkler tema adlarıyla; `remove(numara)`, `clear()`; `Canvas.Clicked`, `Canvas.Dragged` |
 | `Spinbox` | Sayı alanı `[ − 12 + ]`: ↑/↓ adım, PgUp/PgDn on adım, Home/End sınırlar, yazınca baştan yazılır (⏎ onaylar, Esc vazgeçer, virgül de ondalık), ± tık ve tekerlek; `min`, `max`, `step`, `format` |
@@ -397,17 +429,17 @@ class Uygulama(ui.App):
 | `Header`, `KeyBar`, `StatusBar` | Logo ve saat; geçerli kısayollar (tıklanabilir); mod rozetli durum çubuğu |
 | `Row`, `Column`, `Spacer` | Yerleşim |
 
-![menü](docs/ekran/bilesen-menu.png)
+![menü](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-menu.png)
 
-![açılır seçim ve kaydırıcı](docs/ekran/bilesen-select.png)
+![açılır seçim ve kaydırıcı](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-select.png)
 
-![sağ tık menüsü](docs/ekran/bilesen-sagtik.png)
+![sağ tık menüsü](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-sagtik.png)
 
-![modern görünümde menü](docs/ekran/bilesen-modern-menu2.png)
+![modern görünümde menü](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-modern-menu2.png)
 
-![resim, sayı alanı, Canvas ve bölünebilir paneller](docs/ekran/bilesen-kalan.png)
+![resim, sayı alanı, Canvas ve bölünebilir paneller](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-kalan.png)
 
-![aynı ekran: resim terminal blokları, sağda oklu sayı alanı, gizli ayraç](docs/ekran/bilesen-kalan-bloklar.png)
+![aynı ekran: resim terminal blokları, sağda oklu sayı alanı, gizli ayraç](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-kalan-bloklar.png)
 
 ## Kararlar
 
@@ -460,6 +492,13 @@ bloklar); sayı alanı açılır seçimle aynı köşeli dilde (`spin`); ayraç 
 
 **29.10.2026 · ilk yayın:** 0.8.0 PyPI'ye yüklendi; `pip install termik` çalışıyor.
 
+**Grafik, belgeler ve durum kaydı turu:** grafikler varsayılan olarak yumuşak kenarlı çizgiler ve
+terminal havasında eksenlerle (`chart`: `braille`, `blocks` da seçilebilir); veri katmanı (`plot.py`)
+pygame istemez, terminal de onu kullanır. Durum kaydı isteğe bağlı (`SAVE_STATE = True`) ve hepsini
+saklar. Belgeler `docs/` içinde Markdown; GitHub Pages ile `efebagci.github.io/termik/` adresinde
+(o adresin kökündeki kişisel site etkilenmez). Galeri `docs/galeri.py` ile koddan üretilir; README
+görselleri PyPI'de de görünsün diye tam adresle bağlı.
+
 **Kısa yazım turu:** özelleştirmeden ödün vermeden daha az kod. Etiketli formlar `ui.Form` +
 `label=` (etiketler solda hizalı; `form_label` ile üstte); değer bağlama `bind=` ile pencerenin
 özniteliğine; sınıfsız uygulama dekoratörlerle (`@app.compose`, `@app.action`, `@app.on`); düğmeye
@@ -491,6 +530,7 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `spin` | `bracket` `[ − 12 + ]` · `arrows` `◂ 12 ▸` · `stacked` alan ve sağda ▴▾ | `bracket` (modern: `stacked`) |
 | `split` | `line` ince çizgi ve ⋮ tutamak · `bar` dolu sütun · `hidden` yalnızca fare gelince | `line` |
 | `form_label` | `left` etiketler solda, en uzun etikete göre hizalı · `top` alanın üstünde | `left` |
+| `chart` | `smooth` yumuşak kenarlı çizgiler · `braille` ⣀⡠ nokta ızgarası · `blocks` ▁▃▇ blokları | `smooth` |
 | `radius`, `panel_fill` | köşe yarıçapı; panellerin kart gibi dolu olup olmadığı | `0`, `False` |
 
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
@@ -539,6 +579,8 @@ python tests/test_components.py
 python tests/test_windows.py
 python tests/test_extras.py
 python tests/test_easy.py
+python tests/test_chart_state.py
+python docs/galeri.py          # bileşen galerisini (görüntüler + docs/bilesenler.md) yeniden üret
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
@@ -589,6 +631,8 @@ python -m twine upload dist/*
 |---|---|
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `yeni`, `çalıştır`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
+| `termik/plot.py` | Grafik verisi (pygame'siz): seriler, eksen adımları, Türkçe sayı biçimi, terminal için blok grafik |
+| `docs/` | Belge sitesi (GitHub Pages): giriş, bileşen galerisi (`galeri.py` üretir), tarifler; README görselleri |
 | `termik/dev.py` | Proje iskeletleri (`termik yeni`) ve kaydettikçe yeniden başlatan izleyici (`termik çalıştır --izle`) |
 | `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |
@@ -603,7 +647,7 @@ python -m twine upload dist/*
 | `termik/fonts/` | JetBrains Mono NL Regular/Bold ve `OFL.txt` |
 | `termik/demo/` | `termik akis` (akış API'siyle yazılmış betik) ve `termik demo` (bileşenlerle yazılmış uygulama) |
 | `docs/ekran/` | README'deki ekran görüntüleri |
-| `tests/` | 121 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), resim/Canvas/sayı alanı/Split (5), kısa yazım (8), ayarlar ve komut satırı (11) |
+| `tests/` | 128 test: çekirdek (18), bileşenler (12), TextArea (12), diyalog/ScrollView (9), menü/seçim/sekme/kaydırıcı/ipucu (9), pencereler/sürükle-bırak/dosya diyalogları (9), akış API'si (28; beşi ayrı süreçte, gerçek ana thread'le), resim/Canvas/sayı alanı/Split (5), kısa yazım (8), grafik ve durum kaydı (7), ayarlar ve komut satırı (11) |
 
 ## Öğrendiklerimiz
 
@@ -658,10 +702,9 @@ python -m twine upload dist/*
 
 ## Sıradaki adımlar
 
-1. **Bir depo adresi** (ör. GitHub): README'deki ekran görüntüleri şimdilik göreli yollarla bağlı
-   olduğu için PyPI sayfasında görünmüyor; depo açılınca tam adrese çevrilip `pyproject.toml`'a
-   depo bağlantısı eklenecek.
-2. **Grafik bileşeni** Canvas'ın üstünde: çizgi ve çubuk grafik, eksenler, ipucunda değer.
+1. **Grafik eklemeleri:** pasta/halka grafik, iki y ekseni, yakınlaştırma ve kaydırma, grafiği PNG
+   olarak kaydetme.
+2. **Belgelerde arama** ve her sayfanın İngilizcesi.
 3. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri; yerel dosya
    diyaloğunun macOS (osascript) ve Linux (zenity, kdialog) yolları henüz yalnızca yazıldı, denenmedi.
 4. **Akışta küçük eklemeler:** çok satırlı yazı soran `ask_text`, "devam etmek için ⏎" diyen `pause`,

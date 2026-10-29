@@ -127,6 +127,23 @@ def _hicon(surface: pygame.Surface) -> int:
     return _lib().CreateIconFromResourceEx(data, len(data), True, 0x00030000, w, h, 0) or 0
 
 
+def on_screen(x: int, y: int, w: int, h: int) -> bool:
+    """Dikdörtgen bir ekranla kesişiyor mu (Windows'ta MonitorFromRect; başka sistemlerde hep evet)."""
+    if not _WIN:
+        return True
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        rect = wintypes.RECT(x, y, x + w, y + h)
+        user32 = ctypes.WinDLL("user32")
+        user32.MonitorFromRect.argtypes = (ctypes.POINTER(wintypes.RECT), wintypes.DWORD)
+        user32.MonitorFromRect.restype = ctypes.c_void_p
+        return bool(user32.MonitorFromRect(ctypes.byref(rect), 0))  # MONITOR_DEFAULTTONULL
+    except (OSError, AttributeError):
+        return True
+
+
 def mouse_in(window: pygame.Window) -> tuple[int, int] | None:
     """Farenin pencere içindeki konumu, pencere fare olayı almıyor olsa da (dosya bırakılırken)."""
     try:

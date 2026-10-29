@@ -26,6 +26,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.urls]
+Belgeler = "https://efebagci.github.io/termik/"
+Kaynak = "https://github.com/Efebagci/termik"
+Sorunlar = "https://github.com/Efebagci/termik/issues"
+Galeri = "https://efebagci.github.io/termik/bilesenler.html"
+
 [project.scripts]
 termik = "termik.__main__:main"
 

@@ -35,7 +35,8 @@ from . import capture as _capture
 from .common import ICONS, Progress, Shown, WidgetValue, format_table, is_widget
 
 __all__ = [
-    "Field", "Password", "Progress", "Session", "ask", "ask_path", "choose", "choose_many", "confirm", "error",
+    "Field", "Password", "Progress", "Session", "ask", "ask_path", "chart", "choose", "choose_many", "confirm",
+    "error",
     "form", "info", "ok", "print", "progress", "restyle", "rule", "setup", "show", "spinner", "table", "track",
     "warn",
 ]
@@ -193,6 +194,25 @@ class Session:
         if not is_widget(widget):
             raise TypeError(f"show(): bileşen bekleniyordu, {type(widget).__name__} geldi")
         return self._io().show(widget)
+
+    def chart(self, data: Any = None, **options: Any) -> Shown:
+        """Grafik göster; canlı güncellemek için tutamak döndürür:
+
+            cpu = termik.chart({"cpu": []}, title="CPU %", y_min=0, y_max=100, max_points=60)
+            for _ in range(600):
+                cpu.append("cpu", ölç())
+                time.sleep(0.1)
+
+        Seçenekler ui.Chart'ınkilerdir (kind="bar", x=…, height=…). Pencerede çizgi, alan ya da çubuk
+        grafiği; terminalde o anki hali ▁▃▇ bloklarıyla (çubuk grafiği yatay) yazılır. pygame yoksa da çalışır.
+        """
+        try:
+            from ..widgets.chart import Chart
+        except ImportError:  # pygame-ce kurulu değil: yalnızca terminal
+            from ..plot import ChartData
+            keys = ("kind", "title", "x", "y_min", "y_max", "max_points", "y_format")
+            return self._io().show(ChartData(data, **{k: v for k, v in options.items() if k in keys}))
+        return self._io().show(Chart(data, **options))
 
     # ── sorular ───────────────────────────────────────────
 
@@ -706,6 +726,11 @@ def choose_many(label: str, options: Iterable[T] | dict[str, T], *, default: Ite
 def confirm(label: str, *, default: bool = True, yes: str = "Evet", no: str = "Hayır") -> bool:
     """Evet/hayır sor: if termik.confirm("Silinsin mi?", default=False): …"""
     return _session().confirm(label, default=default, yes=yes, no=no)
+
+
+def chart(data: Any = None, **options: Any) -> Shown:
+    """Grafik göster: cpu = termik.chart({"cpu": []}, max_points=60); cpu.append("cpu", 42). Ayrıntı: Session.chart."""
+    return _session().chart(data, **options)
 
 
 def show(widget: Any) -> Shown:

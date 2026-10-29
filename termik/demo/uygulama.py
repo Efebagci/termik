@@ -70,7 +70,12 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 [bold]Sistem paneli[/]
   Bu sürecin kendi CPU kullanımı ve saniyede çizilen kare
   sayısı. Boştayken ikisi de sıfıra yaklaşır: ekran yalnızca
-  bir şey değişince çizilir."""
+  bir şey değişince çizilir. Yan paneldeki Grafik sekmesi
+  aynı değerleri son bir dakika boyunca çizer (fareyle değer).
+
+[bold]Hatırlama[/]
+  Kapanınca pencerenin yeri, sütun genişlikleri, açık sekme
+  ve kaynak/hedef/sakla alanları saklanır; açılınca geri gelir."""
 
 HISTORY = [  # örnek geçmiş; gerçek yedeklemeler en üste eklenir
     ("[green]✓[/]", "27.10 22:14", "artımlı", "38", "412 KB", "0:42"),
@@ -179,6 +184,8 @@ def human(n: float) -> str:
 class BackupApp(ui.App):
     TITLE = "termik · demo"
     SIZE = (1280, 800)
+    SAVE_STATE = True       # pencere, sütun oranları, açık sekme ve bağlı alanlar kapanınca saklanır
+    STATE_NAME = "termik-demo"
     running = ui.reactive(False)
     source = ui.reactive("")          # bind="source": kaynak klasör alanı
     target = ui.reactive("D:\\Yedek")  # bind="target": hedef klasör alanı
@@ -256,6 +263,9 @@ class BackupApp(ui.App):
                         with ui.Tab("Önizleme"):
                             yield ui.Image(width="1fr", height="1fr", placeholder="ağaçta bir resim seç",
                                            id="preview")
+                        with ui.Tab("Grafik"):
+                            yield ui.Chart({"CPU %": [], "FPS": []}, title="Bu süreç", y_min=0, max_points=120,
+                                           height="1fr", id="usage")
         yield ui.KeyBar()
         yield ui.StatusBar(mode="HAZIR", left="termik demo", id="statusbar")
 
@@ -423,8 +433,12 @@ class BackupApp(ui.App):
         then, cpu_then = self._cpu_mark
         self._cpu_mark = (now, cpu)
         elapsed = max(1e-6, now - then)
-        self.query_one("#cpu", ui.Sparkline).append(min(1.0, (cpu - cpu_then) / elapsed))
-        self.query_one("#fps", ui.Sparkline).append((self.frame_count - self._frames_mark) / elapsed)
+        load, fps = min(1.0, (cpu - cpu_then) / elapsed), (self.frame_count - self._frames_mark) / elapsed
+        self.query_one("#cpu", ui.Sparkline).append(load)
+        self.query_one("#fps", ui.Sparkline).append(fps)
+        usage = self.query_one("#usage", ui.Chart)  # Grafik sekmesi: aynı değerler, son bir dakika
+        usage.append("CPU %", round(load * 100, 1), label=time.strftime("%H:%M:%S"))
+        usage.append("FPS", round(fps, 1))
         self._frames_mark = self.frame_count
 
     def _update_statusbar(self) -> None:

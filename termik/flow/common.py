@@ -235,6 +235,9 @@ def widget_lines(widget: Any) -> list[str]:
     """Terminalde gösterilecek hali: tablo hizalı satırlar, yazı kendisi, öbürleri kısa bir not."""
     from ..markup import plain_text
 
+    text_lines = getattr(widget, "text_lines", None)  # grafik: ▁▃▇ bloklarıyla
+    if callable(text_lines):
+        return text_lines()
     columns, rows = getattr(widget, "columns", None), getattr(widget, "rows", None)
     if isinstance(columns, list) and isinstance(rows, list):
         headers = [plain_text(str(getattr(c, "label", c))) for c in columns]
