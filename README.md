@@ -1,11 +1,15 @@
 # termik
 
+[![PyPI](https://img.shields.io/pypi/v/termik)](https://pypi.org/project/termik/)
+[![Python](https://img.shields.io/pypi/pyversions/termik)](https://pypi.org/project/termik/)
+[![Lisans: MIT](https://img.shields.io/pypi/l/termik)](LICENSE)
+
 CLI'ın görünüşü ve hissi, GUI'ın kullanım rahatlığıyla. pygame-ce üzerinde çalışan bir Python
 arayüz kütüphanesi.
 
 ![demo](docs/ekran/demo-calisiyor.png)
 
-> **Durum: v0.8.0.** İki katman da hazır ve paket `pip` ile kuruluyor. Akış API'si (`ask`,
+> **Durum: v0.8.0, [PyPI'de yayında](https://pypi.org/project/termik/).** İki katman da hazır. Akış API'si (`ask`,
 > `choose`, `confirm`, `track`…) script'lere birkaç satırla pencere verir; pencere açılamazsa aynı
 > script terminalde çalışır. Görünüm tercihleri bir ayar dosyasında tutulur.
 > Bileşen katmanında çekirdek (ağaç, flex yerleşim, odak, olay yönlendirme, `@action`, reaktif
@@ -22,7 +26,8 @@ arayüz kütüphanesi.
 pip install termik
 ```
 
-Python 3.11 ya da daha yenisi gerekir; pygame-ce kendiliğinden kurulur. Kurulunca `termik` komutu
+Paket [PyPI'de](https://pypi.org/project/termik/). Python 3.11 ya da daha yenisi gerekir; pygame-ce
+kendiliğinden kurulur. Yeni sürüme geçmek için `pip install -U termik`. Kurulunca `termik` komutu
 gelir:
 
 ```bash
@@ -375,6 +380,8 @@ pikselleriyle yumuşak ölçeklenir (`image`: `pixel` iri pikseller, `blocks` te
 bloklar); sayı alanı açılır seçimle aynı köşeli dilde (`spin`); ayraç ince çizgi ve ⋮ tutamak
 (`split`). Canvas'ta çağrılar bir çizim listesinde saklanır, koordinatlar karakter ve satır birimi.
 
+**29.10.2026 · ilk yayın:** 0.8.0 PyPI'ye yüklendi; `pip install termik` çalışıyor.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -480,10 +487,13 @@ async with app.run_test() as pilot:
 
 Testler kullanıcının ayar dosyasından ve `TERMIK_*` değişkenlerinden yalıtılır (`tests/_ortam.py`).
 
-Paketi derleyip PyPI'ye yüklemek (`pip install build twine` gerekir):
+Yeni sürüm yayınlamak (`pip install build twine` gerekir): önce `termik/__init__.py` içindeki
+`__version__` artırılır (PyPI aynı sürümü ikinci kez kabul etmez), sonra paket derlenip yüklenir.
+Kullanıcı adı `__token__`, şifre yalnızca `termik` projesine yetkili bir PyPI API token'ıdır.
 
 ```bash
 python -m build
+python -m twine check dist/*
 python -m twine upload dist/*
 ```
 
@@ -557,7 +567,9 @@ python -m twine upload dist/*
 
 ## Sıradaki adımlar
 
-1. **PyPI'ye ilk yükleme** ve README'deki görsellerin PyPI'de de görünmesi için bir depo adresi.
+1. **Bir depo adresi** (ör. GitHub): README'deki ekran görüntüleri şimdilik göreli yollarla bağlı
+   olduğu için PyPI sayfasında görünmüyor; depo açılınca tam adrese çevrilip `pyproject.toml`'a
+   depo bağlantısı eklenecek.
 2. **Grafik bileşeni** Canvas'ın üstünde: çizgi ve çubuk grafik, eksenler, ipucunda değer.
 3. **macOS kipi** (pencere ana thread'de, script ayrı thread'de) ve Linux denemeleri; yerel dosya
    diyaloğunun macOS (osascript) ve Linux (zenity, kdialog) yolları henüz yalnızca yazıldı, denenmedi.
