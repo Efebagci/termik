@@ -1,4 +1,4 @@
-"""Renkler ve paneller: üç renkli palet, tema oluşturma, öge türü rolleri, öge başına renk, panel
+"""Renkler ve paneller: iki renkli hazır temalar, tema oluşturma, öge türü rolleri, öge başına renk, panel
 çerçevesi ve odak işareti, tam ekran düğmesi. Pencere açmadan Pilot ile.
 
     python tests/test_colors.py
@@ -34,10 +34,16 @@ def colours(surface, rect):
     return [surface.get_at((x, y)) for x in range(rect.left, rect.right) for y in range(rect.top, rect.bottom)]
 
 
-def test_palette_names_and_three_colors():
+UCLU = ui.make_theme("üçlü", ["#38bdf8", "#818cf8", "#fdba74"])  # üç renkli kendi tema (kaydedilmez)
+
+
+def test_palette_names_and_two_colors():
     for name, theme in THEMES.items():
-        assert len(theme.palette) == 3 and len(set(theme.palette)) == 3, name  # her tema üç ayrı renk
-    th = THEMES["okyanus"]
+        assert len(theme.palette) == 2 and len(set(theme.palette)) == 2, name  # hazır temalar iki ayrı renk
+    two = THEMES["fosfor"]  # üçüncül isteyen birincile döner
+    assert two.accent3 is None and two.resolve(3) == two.resolve("tertiary") == two.resolve("accent3") == two.accent
+    assert two.tinted(2).palette == (two.accent2, two.accent)
+    th = UCLU
     for spec, expected in ((1, th.accent), (2, th.accent2), (3, th.accent3), (4, th.accent),
                            ("primary", th.accent), ("secondary", th.accent2), ("tertiary", th.accent3),
                            ("birincil", th.accent), ("ikincil", th.accent2), ("üçüncül", th.accent3),
@@ -53,8 +59,8 @@ def test_make_and_register_theme():
     t = ui.make_theme("deneme-dört", ["#ff0000", "#00ff00", "#0000ff", "#ffff00"], neutral="#777777")
     assert t.palette == ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0))
     assert t.resolve("quaternary") == t.resolve("dördüncül") == t.resolve(4) == (255, 255, 0)
-    one = ui.make_theme("tek", ["#3366ff"])  # eksikler renk çemberinde türetilir
-    assert len(set(one.palette)) == 3
+    one = ui.make_theme("tek", ["#3366ff"])  # ikincisi renk çemberinde türetilir, üçüncül eklenmez
+    assert len(set(one.palette)) == 2 and one.accent3 is None
     dark = ui.make_theme("koyu", accent="#22aa88", background="#000000")
     assert dark.bg[0] < 10 and dark.accent == hex_color("#22aa88")
     try:
@@ -82,7 +88,7 @@ class Renkli(ui.App):
 
 def test_roles_and_per_element_color():
     async def main():
-        app = Renkli(theme="okyanus")  # fosfor'da birincil ile "green" aynı neon yeşil
+        app = Renkli(theme=UCLU)  # üç renkli tema; fosfor'da birincil ile "green" aynı neon yeşil
         async with app.run_test() as pilot:
             th = app.theme
             app.query_one("#bar").progress = 1.0
@@ -104,9 +110,9 @@ def test_roles_and_per_element_color():
             assert any(near(c, th.green) for c in fill("#b2"))  # öge kendi rengini korur
             app.set_roles(ProgressBar=None, Button=None)  # varsayılana dön
             assert app.roles["ProgressBar"] == ui.ROLES["ProgressBar"]
-            app.set_theme("lavanta")  # roller temadan bağımsız: yeni temanın üçüncülü
+            app.set_theme("lavanta")  # roller temadan bağımsız; iki renkli temada üçüncül birincile döner
             await pilot.pause()
-            assert any(near(c, THEMES["lavanta"].accent3) for c in fill("#b3"))
+            assert any(near(c, THEMES["lavanta"].accent) for c in fill("#b3"))
             assert not app._errors
 
         class Ozel(Renkli):

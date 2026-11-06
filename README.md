@@ -522,6 +522,10 @@ renkle çizileceği temadan bağımsız `ROLES` tablosunda; her öge ayrıca `co
 çerçeveleri soluk (`frame = "faint"`); içinde odak olan panelde yalnızca başlık vurgu rengine döner
 (`focus = "title"`), çerçeve yanmaz. Görünür tam ekran düğmesi: `ui.FullscreenButton`.
 
+**İki renk turu:** hazır temalar iki renkli (birincil, ikincil); terminaldeki gibi az renk daha
+derli toplu duruyor. Üçüncül rolündeki ögeler (sekmeler, ağaç, tablo, başlık) bu temalarda birincile
+döner. `make_theme` verilen kadar renk kurar; üç, dört renkli tema yapmak hâlâ serbest.
+
 **Siyah zemin turu:** terminal havası için bütün temalar saf siyah zeminli; dört yeni parlak, hafif
 cırtlak tema (`fosfor`, `ansi`, `sentetik`, `kehribar`) eklendi, varsayılan `fosfor`. Eski altı tema
 aynı renklerle siyah zemine geçti. Çubuk, kaydırıcı, mini grafik ve logo artık düz renkte
@@ -530,7 +534,7 @@ zemin kurar, `background=` başka zemin verir.
 
 ## Görünüm ayarları
 
-Renk teması (`THEMES`: `fosfor` (varsayılan: neon yeşil, kehribar, camgöbeği), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
+Renk teması (`THEMES`: `fosfor` (varsayılan: neon yeşil ve kehribar), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
 title=…)` ya da çalışırken `app.set_theme(…)` ile verilir. Verilmeyenler kullanıcının
 tercihlerinden gelir (aşağıda **Ayarlar**).
 
@@ -565,15 +569,16 @@ prototipin yuvarlak, kart zeminli hali).
 
 ## Renkler
 
-Her tema üç renkten oluşur: **birincil**, **ikincil**, **üçüncül** (gri tonları, zemin ve yazı
-rengi dışında). Hangi öge türünün kaçıncı renkle çizileceği temadan bağımsız bir tabloda (`ui.ROLES`)
+Hazır temalar iki renklidir: **birincil** ve **ikincil** (gri tonları, zemin, yazı ve durum
+renkleri dışında). Kendi temanda üçüncül, dördüncül… de olabilir; paletin yetmediği sıra baştan
+döner, yani hazır temalarda üçüncül isteyen öge birincil renkle çizilir. Hangi öge türünün kaçıncı renkle çizileceği temadan bağımsız bir tabloda (`ui.ROLES`)
 durur; tema değişince ögeler sıralarını korur, yalnızca renkler değişir.
 
 | Sıra | Varsayılan olarak kullanan ögeler |
 |---|---|
 | 1 · birincil | etkileşim ve odak: `Button`, `Input`, `TextArea`, `Select`, `Spinbox`, `Checkbox`, `RadioSet`, `OptionList`, `Panel` (odak), `MenuBar`, `Split`, `Canvas`, `Chart` |
 | 2 · ikincil | değer ve ilerleme: `ProgressBar`, `Slider`, `Sparkline` |
-| 3 · üçüncül | gezinme ve yapı: `Tabs`, `Tree`, `Table`, `Header`, `StatusBar`, `KeyBar` |
+| 3 · üçüncül | gezinme ve yapı: `Tabs`, `Tree`, `Table`, `Header`, `StatusBar`, `KeyBar` (iki renkli temada birincil) |
 
 ```python
 import termik as ui
@@ -595,7 +600,8 @@ Uygulama(theme="deniz").run()
 ```
 
 - **Tema yapmak:** `ui.make_theme(ad, renkler, ok=, warn=, err=, neutral=, background=)`. Renkler
-  `"#rrggbb"` ya da `(r, g, b)`; üçten az verilirse eksikler renk çemberinde türetilir. `App(theme=…)`
+  `"#rrggbb"` ya da `(r, g, b)`; tema kaç renk verildiyse o kadar renklidir, tek renk verilirse
+  ikincisi renk çemberinde türetilir. `App(theme=…)`
   bir `Theme` nesnesi de alır (kendiliğinden kaydedilir).
 - **Rolleri değiştirmek:** sınıfta `ROLES = {…}`, `App(roles={…})` ya da çalışırken
   `app.set_roles(Tabs=2)` (`None` varsayılana döndürür). Anahtar bileşen sınıfının adıdır; alt

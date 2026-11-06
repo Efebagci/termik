@@ -461,14 +461,15 @@ def test_demo_toolbar_styles_roles_and_own_theme():
             assert app.theme.frame == following
             values = w.query_one("#role-1", ui.Select)  # "Değerler" grubu: ilerleme çubuğu, kaydırıcı
             await pilot.click(values)
-            await pilot.press("down", "enter")
-            assert app.roles["ProgressBar"] == app.roles["Slider"] == 3
+            assert values.options == ["1 · birincil", "2 · ikincil"]  # hazır temalar iki renkli
+            await pilot.press("up", "enter")
+            assert app.roles["ProgressBar"] == app.roles["Slider"] == 1
             await pilot.click(w.query_one("#gradient", ui.Checkbox))  # renk geçişi: varsayılan kapalı
             assert app.theme.gradient
             app.set_theme("gece")  # demonun kendi teması: dört renk, seçenekler de dörde çıkar
             await pilot.pause()
             assert "gece" in THEMES and len(app.theme.palette) == 4
-            assert len(values.options) == 4 and values.index == 2
+            assert len(values.options) == 4 and values.index == 0
             assert w.query_one("#theme", ui.Select).value == "gece"
             assert not app._errors
     run(main())

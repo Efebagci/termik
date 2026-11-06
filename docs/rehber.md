@@ -845,7 +845,7 @@ olmayan bir dosyayı gösterebilir; durum kaydı `run_test` altında yalnızca a
 
 Görünüş üç bağımsız eksende seçilir:
 
-1. **Renk teması** (`theme`): `fosfor` (varsayılan: neon yeşil, kehribar, camgöbeği), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli.
+1. **Renk teması** (`theme`): `fosfor` (varsayılan: neon yeşil ve kehribar), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli.
 2. **Görünüm kümesi** (`look`): `terminal` (keskin köşe, dolu kutu butonlar) ya da `modern` (yuvarlak,
    kart zeminli).
 3. **Yoğunluk** (`density`): `sıkı`, `dengeli`, `rahat` (varsayılan), `ferah`.
@@ -886,11 +886,12 @@ vermezse onun tercihi geçerli olur. Tema yalnızca uygulamanın kimliği için 
 
 ### 16.1 Renkler: palet, roller, öge başına renk
 
-Her tema üç renkten oluşur: birincil (`accent`), ikincil (`accent2`), üçüncül (`accent3`);
-`make_theme` ile dördüncül ve sonrası da eklenir. Hangi öge türünün kaçıncı renkle çizileceği
+Hazır temalar iki renklidir: birincil (`accent`) ve ikincil (`accent2`). `make_theme` ile üçüncül
+(`accent3`), dördüncül ve sonrası da eklenir; tema kaç renk verildiyse o kadar renklidir. Paletin
+yetmediği sıra baştan döner: iki renkli temada 3 → birincil, `accent3` de birincili verir. Hangi öge türünün kaçıncı renkle çizileceği
 temadan bağımsız `ui.ROLES` tablosundadır: 1 etkileşim (Button, Input, Select, Checkbox…, odak),
 2 değer (ProgressBar, Slider, Sparkline), 3 gezinme ve yapı (Tabs, Tree, Table, Header, StatusBar,
-KeyBar).
+KeyBar; iki renkli temada bunlar birincil renkte).
 
 ```python
 deniz = ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])  # 4 renk

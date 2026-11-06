@@ -63,7 +63,7 @@ class Theme:
     # vurgular ve durum renkleri
     accent: Color   # birincil renk
     accent2: Color  # ikincil
-    accent3: Color  # üçüncül
+    accent3: Color | None  # üçüncül; iki renkli temada None (üçüncül isteyen birincile döner)
     red: Color
     green: Color
     yellow: Color
@@ -101,7 +101,9 @@ class Theme:
 
     @property
     def palette(self) -> tuple[Color, ...]:
-        """Temanın renkleri sırayla: birincil, ikincil, üçüncül, (dördüncül…)."""
+        """Temanın renkleri sırayla: birincil, ikincil, (üçüncül, dördüncül…). Hazır temalar iki renklidir."""
+        if self.accent3 is None:
+            return (self.accent, self.accent2)
         return (self.accent, self.accent2, self.accent3, *self.extra)
 
     def slot(self, n: int) -> Color:
@@ -119,7 +121,8 @@ class Theme:
                 return None
         name = _ALIASES.get(name, name)
         if name in _COLOR_FIELDS:
-            return getattr(self, name)
+            value = getattr(self, name)
+            return self.slot(3) if value is None else value  # iki renkli temada accent3 → birincil
         for names in (SLOT_NAMES, _SLOT_TR):
             if name in names:
                 return self.slot(names.index(name) + 1)
@@ -140,9 +143,10 @@ class Theme:
 
     def tinted(self, spec) -> Theme:
         """Bu temanın, vurgu rengi spec olan kopyası: bir öge kendi rengiyle çizilirken kullanılır.
-        Sıra numarası verilirse ikincil ve üçüncül de paletteki sırayı izler (2 → 2, 3, 1)."""
+        Sıra numarası verilirse ikincil ve üçüncül de paletteki sırayı izler (2 → 2, 3, 1; iki renkte 2 → 2, 1)."""
         if isinstance(spec, int) and not isinstance(spec, bool):
-            return replace(self, accent=self.slot(spec), accent2=self.slot(spec + 1), accent3=self.slot(spec + 2))
+            third = None if self.accent3 is None else self.slot(spec + 2)
+            return replace(self, accent=self.slot(spec), accent2=self.slot(spec + 1), accent3=third)
         color = self.resolve(spec)
         return self if color is None or color == self.accent else replace(self, accent=color)
 
@@ -179,9 +183,10 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
 
         ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])   # birincil, ikincil, …
 
-    colors birincil, ikincil, üçüncül ve isteğe bağlı sonraki renklerdir ("#rrggbb" ya da (r, g, b));
-    accent=, accent2=, accent3= tek tek de verilebilir. Üçten az renk verilirse eksikler renk çemberinde
-    döndürülerek türetilir. ok, warn, err durum renkleri; neutral soluk yazı tonu (ikincil yazı bununla
+    colors birincil, ikincil ve isteğe bağlı üçüncül, dördüncül… renklerdir ("#rrggbb" ya da (r, g, b));
+    accent=, accent2=, accent3= tek tek de verilebilir. Tema kaç renk verildiyse o kadar renklidir; tek
+    renk verilirse ikincisi renk çemberinde döndürülerek türetilir. Paletin yetmediği sıra (üçüncül
+    isteyen öge iki renkli temada) baştan döner, yani birincil renkle çizilir. ok, warn, err durum renkleri; neutral soluk yazı tonu (ikincil yazı bununla
     ana yazı renginin arasından türetilir). Zemin varsayılan olarak saf siyahtır; background başka bir
     taban verir. Zemin olduğu gibi kalır; panel, yükseltilmiş yüzey ve çizgi birincil renge tint oranında
     çekilir, böylece her tema kendi havasını taşır.
@@ -198,7 +203,7 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
         raise ValueError("make_theme: en az birincil renk gerekli")
     a = given[0]
     second = given[1] if len(given) > 1 and given[1] is not None else _hue_shift(a, 60)
-    third = given[2] if len(given) > 2 and given[2] is not None else _hue_shift(a, 180)
+    third = given[2] if len(given) > 2 and given[2] is not None else None  # üçüncül yalnızca istenirse
     bases = dict(_BASE)
     if background is not None:
         bg = hex_color(background)
@@ -219,20 +224,20 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
 # Siyah zeminli, parlak ve hafif cırtlak terminal renkleri; ardından audn-cli'daki altı tema (aynı
 # renkler, siyah zemin). Her biri üç renkli: birincil, ikincil, üçüncül.
 THEMES: dict[str, Theme] = {t.name: t for t in (
-    make_theme("fosfor", ["#39ff14", "#ffb000", "#00e5ff"], ok="#39ff14", warn="#ffd000", err="#ff3b30",
+    make_theme("fosfor", ["#39ff14", "#ffb000"], ok="#39ff14", warn="#ffd000", err="#ff3b30",
                neutral="#6b6b6b", blue="#3b9dff", magenta="#ff4dff", cyan="#00e5ff"),
-    make_theme("ansi", ["#00ffff", "#ff00ff", "#ffff00"], ok="#00ff00", warn="#ffff00", err="#ff3030",
+    make_theme("ansi", ["#00ffff", "#ff00ff"], ok="#00ff00", warn="#ffff00", err="#ff3030",
                neutral="#707070", blue="#5c5cff", magenta="#ff00ff", cyan="#00ffff"),
-    make_theme("sentetik", ["#ff2a6d", "#05d9e8", "#f9f871"], ok="#01ff89", warn="#ffb000", err="#ff3355",
+    make_theme("sentetik", ["#ff2a6d", "#05d9e8"], ok="#01ff89", warn="#ffb000", err="#ff3355",
                neutral="#6d6a7c", blue="#4d7cff", magenta="#ff4dd2", cyan="#05d9e8"),
-    make_theme("kehribar", ["#ffb000", "#ff5f00", "#ffe680"], ok="#9cff00", warn="#ffd000", err="#ff3b30",
+    make_theme("kehribar", ["#ffb000", "#ff5f00"], ok="#9cff00", warn="#ffd000", err="#ff3b30",
                neutral="#7a6a50", blue="#5fafff", magenta="#ff5fd7", cyan="#5fffd7"),
-    make_theme("okyanus", ["#38bdf8", "#818cf8", "#fdba74"], ok="#34d399", warn="#fbbf24", err="#f87171", neutral="#64748b"),
-    make_theme("günbatımı", ["#fb923c", "#f472b6", "#a78bfa"], ok="#4ade80", warn="#facc15", err="#ef4444", neutral="#78716c"),
-    make_theme("orman", ["#4ade80", "#a3e635", "#fbbf24"], ok="#22c55e", warn="#eab308", err="#f87171", neutral="#6b7280"),
-    make_theme("neon", ["#22d3ee", "#e879f9", "#a3e635"], ok="#4ade80", warn="#fde047", err="#fb7185", neutral="#71717a"),
-    make_theme("mono", ["#e5e7eb", "#9ca3af", "#cbd5e1"], ok="#d1d5db", warn="#9ca3af", err="#f87171", neutral="#6b7280", tint=0),
-    make_theme("lavanta", ["#c084fc", "#f0abfc", "#6ee7b7"], ok="#86efac", warn="#fcd34d", err="#fb7185", neutral="#6b7280"),
+    make_theme("okyanus", ["#38bdf8", "#fdba74"], ok="#34d399", warn="#fbbf24", err="#f87171", neutral="#64748b"),
+    make_theme("günbatımı", ["#fb923c", "#f472b6"], ok="#4ade80", warn="#facc15", err="#ef4444", neutral="#78716c"),
+    make_theme("orman", ["#4ade80", "#fbbf24"], ok="#22c55e", warn="#eab308", err="#f87171", neutral="#6b7280"),
+    make_theme("neon", ["#22d3ee", "#e879f9"], ok="#4ade80", warn="#fde047", err="#fb7185", neutral="#71717a"),
+    make_theme("mono", ["#e5e7eb", "#9ca3af"], ok="#d1d5db", warn="#9ca3af", err="#f87171", neutral="#6b7280", tint=0),
+    make_theme("lavanta", ["#c084fc", "#6ee7b7"], ok="#86efac", warn="#fcd34d", err="#fb7185", neutral="#6b7280"),
 )}
 
 
@@ -255,7 +260,7 @@ ROLES: dict[str, int | str] = {
     "OptionList": 1, "Panel": 1, "MenuBar": 1, "Split": 1, "Canvas": 1, "Chart": 1,
     # ikincil: değer ve ilerleme
     "ProgressBar": 2, "Slider": 2, "Sparkline": 2,
-    # üçüncül: gezinme ve yapı
+    # üçüncül: gezinme ve yapı (hazır temalar iki renkli: bunlar orada birincil renkle çizilir)
     "Tabs": 3, "Tree": 3, "Table": 3, "Header": 3, "StatusBar": 3, "KeyBar": 3,
 }
 
