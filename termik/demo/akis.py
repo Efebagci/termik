@@ -7,10 +7,14 @@ Dosyalara dokunmaz: kopyalama yalnızca canlandırılır.
 """
 
 import os
+import sys
 import time
 from pathlib import Path
 
-import termik
+if not __package__:  # dosya doğrudan çalıştırıldı: kurulu (belki eski) sürüm değil, yanındaki termik
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import termik  # noqa: E402
 
 
 def main() -> None:

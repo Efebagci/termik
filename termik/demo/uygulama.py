@@ -24,10 +24,14 @@ import argparse
 import asyncio
 import os
 import shutil
+import sys
 import time
 from pathlib import Path
 
-import termik as ui
+if not __package__:  # dosya doğrudan çalıştırıldı: kurulu (belki eski) sürüm değil, yanındaki termik
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import termik as ui  # noqa: E402
 
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tga")
