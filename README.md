@@ -654,20 +654,27 @@ sorar (Ctrl+O dosya diyaloğunu açar, klasörü pencereye bırakmak da olur), m
 kopyalamayı canlandırır (dosyalara dokunmaz), en büyük dosyaları tabloyla özetler. PowerShell'de
 terminal kipi: `$env:TERMIK_MODE="terminal"; termik akis`.
 
-Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`): menü çubuğu (`alt+d`, `f10`), `ctrl+p` komut paleti, `f1` yardım, `f5` yedeklemeyi başlatır (kaynak klasör gerçekten, ayrı
-thread'de taranır; kopyalama taklittir), `esc` iptal (onay ister), `f2` tema, `f4` yoğunluk, `tab`
-odak, `ctrl+o` kaynak klasörü işletim sisteminin diyaloğuyla seçer, `ctrl+q` ya da ✕ çıkış
-(yedekleme sürüyorsa sorar). Dosya yöneticisinden pencereye bırakılan klasör kaynak olur. Görünüm →
-Ayarlar ayrı bir pencere açar: tema, görünüm, yoğunluk ve dosya diyaloğu seçimi iki pencereye de
-hemen yansır, Kaydet ayar dosyasına yazar. Notlar paneli çok satırlı bir yazı alanıdır; Dosya
-menüsünden bir dosyaya açılır ya da kaydedilir (`ctrl+s`). Üç sütun bir `Split`: aradaki ayraçlar
-sürüklenir. Ağaçta bir resmin üstüne gelmek onu Önizleme sekmesinde gösterir; Sistem panelindeki
-halka (Canvas) hedef diskin doluluğu; formdaki "Sakla" bir sayı alanıdır.
-Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
-tık onu kaynak yapar, sağ tık menüsü kaynak ya da hedef yapar ve yolu panoya kopyalar. Biten yedekleme
-geçmiş tablosuna eklenir. Formda sıkıştırma düzeyi bir kaydırıcı ("Sıkıştır" kapalıyken devre dışı),
-zamanlama bir açılır seçimdir; günlük ve notlar sekmelerdedir, butonlarda ipucu vardır. Sistem paneli demonun kendi CPU
-kullanımını ve saniyede çizilen kare sayısını gösterir: boştayken ikisi de sıfıra yaklaşır.
+Demo (`termik demo`, kaynağı `termik/demo/uygulama.py`) küçük bir yedekleme aracıdır ve her iş
+görünür bir butonla ya da menüden yapılır; kısayollar yalnızca hızlandırıcıdır ve menülerde yazar:
+
+- **Araç çubuğu:** kaynak ve hedef klasörü işletim sisteminin diyaloğuyla seç, notları kaydet,
+  Ayarlar, Yardım ve `⛶ Tam ekran` (`ui.FullscreenButton`).
+- **Başlat / İptal:** kaynak klasör gerçekten, ayrı thread'de taranır; kopyalama taklittir. Yedekleme
+  sürerken Başlat, yokken İptal devre dışıdır (soluk çizilir). İptal kendi rengiyle çizilir
+  (`color="red"`) ve onay ister; ✕ ya da ctrl+q da yedekleme sürüyorsa sorar.
+- **Form:** kutulu yazı alanları (`bind=`), çizilmiş kutucuk ve radyo düğmeleri, sıkıştırma düzeyi
+  kaydırıcısı ("Sıkıştır" kapalıyken devre dışı), zamanlama açılır seçimi, "Sakla" sayı alanı.
+- **Ayarlar penceresi** (ayrı bir `Window`): tema (demonun `make_theme` ile kurduğu dört renkli kendi
+  teması `gece` dahil), görünüm, yoğunluk; buton, alan kutusu, kutucuk, panel çerçevesi ve panel odağı
+  biçimleri; temanın renkleri ve öge gruplarının (etkileşim, değerler, gezinme) paletin kaçıncı
+  rengiyle çizileceği. Seçimler iki pencereye de hemen yansır, Kaydet ayar dosyasına yazar.
+- **Üç sütun bir `Split`:** ayraçlar sürüklenir. Dosya ağacında bir klasöre çift tık onu kaynak yapar,
+  sağ tık menüsü kaynak ya da hedef yapar ve yolu panoya kopyalar; resmin üstüne gelmek onu Önizleme
+  sekmesinde gösterir. Dosya yöneticisinden pencereye bırakılan klasör kaynak olur.
+- **Yan paneller:** biten yedeklemeler geçmiş tablosuna eklenir (başlığa tıkla: sırala); Sistem paneli
+  demonun kendi CPU kullanımını ve saniyede çizilen kare sayısını gösterir (boştayken ikisi de sıfıra
+  yaklaşır), halka (Canvas) hedef diskin doluluğudur; günlük, notlar, önizleme ve grafik sekmelerdedir.
+- **Hatırlama:** kapanınca pencerenin yeri, sütun genişlikleri, açık sekme ve bağlı alanlar saklanır.
 
 Testler pencere açmadan (SDL'in sahte sürücüsüyle) `app.run_test()` ve `Pilot` ile sürülür:
 

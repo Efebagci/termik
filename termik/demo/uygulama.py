@@ -3,14 +3,17 @@
     termik demo                      # ya da: python -m termik demo
     termik demo C:\\Projeler --theme neon --density ferah
 
-Tuşlar: ctrl+p komut paleti · f1 yardım · tab/shift+tab odak · f5 başlat · esc iptal (onay ister)
-f2 tema · f4 yoğunluk · ctrl+o kaynak seç · ctrl+q çık. Alttaki kısayol satırındaki öğelere
-tıklamak da çalışır.
+Her iş görünür bir butonla ya da menüden yapılır: üstteki araç çubuğu (kaynak, hedef, notlar,
+ayarlar, yardım, tam ekran), formun altındaki Başlat ve İptal. Kısayollar yalnızca hızlandırıcıdır
+ve menülerde yazar (f5 başlat, esc iptal, ctrl+o kaynak, f11 tam ekran, ctrl+p komut paleti).
+Başlat yedekleme sürerken, İptal yedekleme yokken devre dışıdır.
 
 Dosya ağacı verilen klasörü (verilmezse çalışılan klasörü) gösterir; bir klasörde Enter ya da çift
 tık onu kaynak yapar. Dosya yöneticisinden pencereye bırakılan klasör de kaynak olur. Kaynak
 gerçekten taranır (ayrı thread'de, pencere donmadan), kopyalama ise taklittir. Görünüm → Ayarlar
-ayrı bir pencere açar; oradaki seçimler iki pencereye de hemen yansır. Sistem paneli bu sürecin
+ayrı bir pencere açar: tema (dört renkli kendi teması "gece" dahil), görünüm, buton, alan, kutucuk
+ve panel biçimleri ile öge türlerinin kaçıncı renkle çizileceği; seçimler iki pencereye de hemen
+yansır. İptal butonu kendi rengiyle (color="red") çizilir. Sistem paneli bu sürecin
 kendi CPU kullanımını ve saniyede çizilen kare sayısını gösterir: boştayken ikisi de sıfıra
 yakındır, çünkü ekran yalnızca bir şey değişince çizilir.
 """
@@ -29,19 +32,30 @@ import termik as ui
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 IMAGE_TYPES = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tga")
 IDLE = "[faint]●[/] [dim]başlamaya hazır[/]"
+
+# Kendi tema: make_theme dört renkle kurar, register_theme adıyla seçilebilir kılar (Ayarlar → Tema)
+GECE = ui.register_theme(ui.make_theme("gece", ["#7aa2f7", "#bb9af7", "#9ece6a", "#ff9e64"],
+                                       ok="#9ece6a", warn="#e0af68", err="#f7768e", neutral="#565f89",
+                                       background="#16161e"))
+
 HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 
-[bold]Genel[/]
-  alt+d    Dosya menüsü (alt+g Görünüm, alt+y Yardım) · f10 menü
-  ctrl+p   komut paleti: bütün komutlar buradan aranır
-  tab      sonraki alan · shift+tab önceki
-  f2 / f4  tema / yoğunluk değiştir
-  Görünüm → Ayarlar: ayrı pencerede tema, görünüm, yoğunluk
-  ctrl+q   çık (yedekleme sürüyorsa sorar; ✕ de öyle)
+[bold]Butonlar[/]
+  Üstteki araç çubuğu: kaynak ve hedef klasörü seç, notları
+  kaydet, ayarlar, yardım, ⛶ tam ekran. Formun altında
+  Başlat ve İptal: yedekleme sürerken Başlat, yokken İptal
+  devre dışıdır (soluk çizilir, basılmaz).
+  Menüler aynı işleri ve kısayollarını gösterir; kısayollar
+  (f5 başlat, esc iptal, f11 tam ekran, ctrl+p komut paleti)
+  yalnızca hızlandırıcıdır.
+
+[bold]Ayarlar penceresi[/]
+  Tema (dört renkli kendi teması "gece" dahil), görünüm,
+  yoğunluk; buton, alan, kutucuk ve panel biçimleri; hangi
+  öge türünün paletin kaçıncı rengiyle çizileceği. Seçimler
+  iki pencereye de hemen yansır; Kaydet ayar dosyasına yazar.
 
 [bold]Yedekleme[/]
-  f5       başlat · esc iptal (onay ister)
-  ctrl+o   kaynak klasörü işletim sisteminin diyaloğuyla seç
   Dosya yöneticisinden pencereye bir klasör bırakmak da
   onu kaynak yapar; yol alanlarına bırakılan yol oraya yazılır.
   Kaynak klasör gerçekten taranır; tarama ayrı bir
@@ -55,7 +69,6 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
 
 [bold]Sütunlar[/]
   Aradaki ayraçları fareyle sürükle; çift tık başa döndürür.
-  alt+shift+← →  odaktaki sütunun ayracını kaydırır.
   Sistem panelindeki halka hedef diskin doluluğu (Canvas).
 
 [bold]Geçmiş tablosu[/]
@@ -63,9 +76,9 @@ HELP = """[bold accent]termik demo[/] · küçük bir yedekleme aracı
   Enter ya da çift tık satırı günlüğe yazar.
 
 [bold]Günlük ve notlar[/]
-  ctrl+tab sekme değiştirir. Notlar çok satırlı bir yazı alanı:
-  ctrl+z geri al, ctrl+y yinele, ctrl+a hepsini seç, ctrl+c/x/v pano.
-  Dosya → Notları aç / kaydet (ctrl+s) dosya diyaloğunu kullanır.
+  Sekme başlıklarına tıkla. Notlar çok satırlı bir yazı alanı;
+  araç çubuğundaki Notları kaydet ve Dosya → Notları aç dosya
+  diyaloğunu kullanır.
 
 [bold]Sistem paneli[/]
   Bu sürecin kendi CPU kullanımı ve saniyede çizilen kare
@@ -125,51 +138,108 @@ class EventLog(ui.Log):
 
 
 class SettingsWindow(ui.Window):
-    """Ayrı pencerede görünüm ayarları: her seçim iki pencereye de hemen yansır; Kaydet ayar
+    """Ayrı pencerede görünüm ve renk ayarları: her seçim iki pencereye de hemen yansır; Kaydet ayar
     dosyasına yazar, böylece termik ile açılan her uygulama bu tercihleri kullanır."""
 
     TITLE = "termik · ayarlar"
-    SIZE = (660, 360)
+    SIZE = (980, 400)
     DIALOGS = {"native": "İşletim sisteminin", "builtin": "termik gezgini"}
+    STYLES = (("Buton", "button"), ("Alan kutusu", "field"), ("Kutucuklar", "toggle"),
+              ("Panel çerçevesi", "frame"), ("Panel odağı", "focus"))
+    # öge türleri gruplar halinde: her grubun rengi paletteki bir sıradır (ui.ROLES'u değiştirir)
+    GROUPS = (("Etkileşim", ("Button", "Input", "TextArea", "Select", "Spinbox", "Checkbox", "RadioSet",
+                             "OptionList", "Panel", "MenuBar", "Split", "Canvas", "Chart")),
+              ("Değerler", ("ProgressBar", "Slider", "Sparkline")),
+              ("Gezinme", ("Tabs", "Tree", "Table", "Header")))
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._syncing = False
 
     def compose(self):
         app = self.app
-        rows = [("Tema", list(ui.THEMES), app.theme.name, "theme"),
-                ("Görünüm", list(ui.LOOKS), app.look, "look"),
-                ("Yoğunluk", list(ui.DENSITIES), app.density, "density"),
-                ("Dosya diyaloğu", list(self.DIALOGS.values()), self.DIALOGS[app.dialogs], "dialogs")]
-        with ui.Panel(title="Görünüm", gap=0.5):
-            for label, options, current, key in rows:
-                with ui.Row(gap=1):
-                    yield ui.Label(f"[dim]{label}[/]", width=16)
-                    yield ui.Select(options, index=options.index(current), id=key)
-            yield ui.Static("[faint]Seçimler bütün pencerelere hemen yansır. Kaydet, ayar dosyasına yazar.[/]")
+        th = app.theme
+        with ui.Row(gap=2):
+            with ui.Panel(title="Görünüm"):
+                with ui.Form():
+                    yield ui.Select(list(ui.THEMES), index=list(ui.THEMES).index(th.name), label="Tema", id="theme")
+                    yield ui.Select(list(ui.LOOKS), index=list(ui.LOOKS).index(app.look), label="Görünüm", id="look")
+                    yield ui.Select(list(ui.DENSITIES), index=list(ui.DENSITIES).index(app.density), label="Yoğunluk",
+                                    id="density")
+                    for label, token in self.STYLES:
+                        values = list(ui.theme.CHOICES[token])
+                        yield ui.Select(values, index=values.index(getattr(th, token)), label=label, id=f"tok-{token}")
+                    dialogs = list(self.DIALOGS.values())
+                    yield ui.Select(dialogs, index=dialogs.index(self.DIALOGS[app.dialogs]), label="Dosya diyaloğu",
+                                    id="dialogs")
+            with ui.Panel(title="Renkler"):
+                yield ui.Canvas(height=3, id="swatches", tooltip="Temanın renkleri, sırasıyla")
+                with ui.Form():
+                    for i, (label, _types) in enumerate(self.GROUPS):
+                        yield ui.Select(self._slots(), index=self._group_slot(i) - 1, label=label, id=f"role-{i}")
+                yield ui.Static("[faint]Hangi öge türünün kaçıncı renkle çizileceği temadan bağımsızdır. Tek bir "
+                                "öge kendi rengini color= ile alır: İptal butonu color=\"red\".[/]")
         with ui.Row(gap=2):
             yield ui.Spacer()
             yield ui.Button("Kaydet", action="save", tooltip=str(ui.settings.config_path()))
             yield ui.Button("Kapat", action="window.close", variant="primary")
-        yield ui.Spacer()
-        yield ui.KeyBar()
+
+    def on_mount(self) -> None:
+        self._draw_swatches()
+
+    def _slots(self) -> list[str]:
+        names = ("birincil", "ikincil", "üçüncül", "dördüncül", "beşincil", "altıncıl")
+        return [f"{i} · {names[i - 1]}" for i in range(1, len(self.app.theme.palette) + 1)]
+
+    def _group_slot(self, i: int) -> int:
+        spec = self.app.roles.get(self.GROUPS[i][1][0], 1)
+        return spec if isinstance(spec, int) and 1 <= spec <= len(self.app.theme.palette) else 1
+
+    def _draw_swatches(self) -> None:
+        canvas = self.query_one("#swatches", ui.Canvas)
+        canvas.clear()
+        for i, name in enumerate(self._slots()):
+            canvas.rect(i * 12, 0.2, 10, 1.4, fill=f"accent{i + 1}")
+            canvas.text(i * 12, 1.8, f"[dim]{name.split(' · ')[1]}[/]")
 
     def on_select_changed(self, event: ui.Select.Changed) -> None:
+        if self._syncing:  # sync() ekrandaki seçimleri güncelliyor; uygulamaya geri yazma
+            return
         key, value, app = event.select.id, event.value, self.app
         if key == "dialogs":
             app.dialogs = next(k for k, v in self.DIALOGS.items() if v == value)
+        elif key.startswith("tok-"):
+            app.set_theme(**{key[4:]: value})
+        elif key.startswith("role-"):
+            slot = event.index + 1
+            app.set_roles(**{name: slot for name in self.GROUPS[int(key[5:])][1]})
         else:
             app.set_theme(**{"name" if key == "theme" else key: value})
 
     def sync(self) -> None:
-        """Ana penceredeki f2/f4 de buradaki seçimleri güncellesin."""
-        app = self.app
-        for key, current in (("theme", app.theme.name), ("look", app.look), ("density", app.density)):
-            select = self.query_one(f"#{key}", ui.Select)
-            select.index = select.options.index(current)
+        """Ana penceredeki f2/f4 ya da görünüm değişince buradaki seçimler de güncellensin."""
+        app, th = self.app, self.app.theme
+        self._syncing = True
+        try:
+            for key, current in (("theme", th.name), ("look", app.look), ("density", app.density),
+                                 *((f"tok-{token}", getattr(th, token)) for _, token in self.STYLES)):
+                select = self.query_one(f"#{key}", ui.Select)
+                select.index = select.options.index(current)
+            for i in range(len(self.GROUPS)):  # renk sayısı temaya göre değişir (gece: dört)
+                select = self.query_one(f"#role-{i}", ui.Select)
+                select.options = self._slots()
+                select.index = self._group_slot(i) - 1
+                select.refresh(layout=True)
+        finally:
+            self._syncing = False
+        self._draw_swatches()
 
     @ui.action("Ayar dosyasına kaydet", key="ctrl+s", hint="kaydet")
     def save(self) -> None:
-        app = self.app
-        path = ui.settings.save({"theme": app.theme.name, "look": app.look, "density": app.density,
-                                 "dialogs": app.dialogs})
+        app, th = self.app, self.app.theme
+        values = {"theme": th.name, "look": app.look, "density": app.density, "dialogs": app.dialogs}
+        values.update({token: getattr(th, token) for _, token in self.STYLES})
+        path = ui.settings.save(values)
         self.notify(f"kaydedildi: {path.name}", "ok")
 
 
@@ -213,11 +283,19 @@ class BackupApp(ui.App):
                                ui.MenuItem("Çı&k", "app.quit")]),
             ui.Menu("&Görünüm", [ui.MenuItem("&Temayı değiştir", "next_theme"),
                                  ui.MenuItem("&Yoğunluğu değiştir", "next_density"), None,
+                                 ui.MenuItem("Tam &ekran", "window.toggle_fullscreen"),
                                  ui.MenuItem("&Ayarlar…", "open_settings"),
                                  ui.MenuItem("&Komut paleti", "app.command_palette")]),
             ui.Menu("&Yardım", [ui.MenuItem("&Yardım", "help")]),
         )
-        yield ui.Header("termik", "bileşen katmanı · demo")
+        with ui.Row(gap=1, id="toolbar"):  # her iş görünür bir butonla; kısayollar yalnızca hızlandırıcı
+            yield ui.Header("termik", "bileşen katmanı · demo", clock=False)
+            yield ui.Button("Kaynak seç…", action="choose_source", tooltip="Yedeklenecek klasörü seç")
+            yield ui.Button("Hedef seç…", action="change_target", tooltip="Yedeklerin yazılacağı klasörü seç")
+            yield ui.Button("Notları kaydet…", action="save_notes")
+            yield ui.Button("Ayarlar…", action="open_settings", tooltip="Tema, biçimler ve renkler")
+            yield ui.Button("Yardım", action="help")
+            yield ui.FullscreenButton()
         with ui.Split(sizes=[32, "1fr", 46], id="columns"):  # sütun aralarındaki ayraçlar sürüklenir
             yield ui.Panel(FileTree(self.folder, id="tree"), title="Dosyalar", id="files")
             with ui.Column(gap=0.5):
@@ -241,8 +319,10 @@ class BackupApp(ui.App):
                         yield ui.ProgressBar(id="bar")
                     with ui.Row(gap=2):
                         yield ui.Spacer()
-                        yield ui.Button("İptal", action="cancel", tooltip="Süren yedeklemeyi durdurur (onay ister)")
-                        yield ui.Button("Başlat ⏎", action="start", variant="primary",
+                        # İptal kendi rengiyle (color=); yedekleme yokken devre dışı, Başlat ise sürerken
+                        yield ui.Button("İptal", action="cancel", variant="primary", color="red", disabled=True, id="cancel",
+                                        tooltip="Süren yedeklemeyi durdurur (onay ister)")
+                        yield ui.Button("Başlat", action="start", variant="primary", id="start",
                                         tooltip="Kaynak klasörü tarar, sonra kopyalamayı canlandırır")
                 yield ui.Panel(ui.Table(("", 2), ("Tarih", 12), ("Mod", "1fr"), ("Dosya", 6, "right"),
                                         ("Boyut", 9, "right"), ("Süre", 6, "right"), id="history"),
@@ -266,8 +346,6 @@ class BackupApp(ui.App):
                         with ui.Tab("Grafik"):
                             yield ui.Chart({"CPU %": [], "FPS": []}, title="Bu süreç", y_min=0, max_points=120,
                                            height="1fr", id="usage")
-        yield ui.KeyBar()
-        yield ui.StatusBar(mode="HAZIR", left="termik demo", id="statusbar")
 
     @property
     def log(self) -> ui.Log:
@@ -279,8 +357,7 @@ class BackupApp(ui.App):
             history.add_row(*row)
         for field in self.query(ui.Input):  # bırakılan klasör yol alanındakinin yerine geçsin
             field.drop_replaces = True
-        self.log.info("hazır: [bold]f5[/] başlat, [bold]ctrl+p[/] komutlar, [bold]tab[/] gezin")
-        self._update_statusbar()
+        self.log.info("hazır: kaynak klasörü seç ya da ağaçtan bir klasöre çift tıkla, sonra [bold]Başlat[/]")
         self._draw_disk()
         self.set_interval(0.5, self._sample)
 
@@ -401,16 +478,15 @@ class BackupApp(ui.App):
         self.set_theme(density=names[(names.index(self.density) + 1) % len(names)])
 
     def set_theme(self, name=None, *, density=None, **tokens) -> None:
-        super().set_theme(name, density=density, **tokens)
-        self._update_statusbar()  # paletteki "Tema: …" komutları da buradan geçer
+        super().set_theme(name, density=density, **tokens)  # paletteki "Tema: …" komutları da buradan geçer
         if self._settings is not None and self._settings.is_open:
             self._settings.sync()
 
     # ── durum ─────────────────────────────────────────────
 
     def watch_running(self, running: bool) -> None:
-        statusbar = self.query_one("#statusbar", ui.StatusBar)
-        statusbar.mode, statusbar.mode_color = ("ÇALIŞIYOR", "green") if running else ("HAZIR", "accent")
+        self.query_one("#start", ui.Button).disabled = running  # durum butonlarda görünür
+        self.query_one("#cancel", ui.Button).disabled = not running
         if running:
             self._spin = self.set_interval(1 / 12, self._spin_status)
         else:
@@ -440,10 +516,6 @@ class BackupApp(ui.App):
         usage.append("CPU %", round(load * 100, 1), label=time.strftime("%H:%M:%S"))
         usage.append("FPS", round(fps, 1))
         self._frames_mark = self.frame_count
-
-    def _update_statusbar(self) -> None:
-        if self.is_mounted:
-            self.query_one("#statusbar", ui.StatusBar).right = f"[accent]{self.theme.name}[/] [faint]· {self.density}[/]"
 
     # ── bileşen mesajları ─────────────────────────────────
 

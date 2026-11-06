@@ -383,9 +383,14 @@ def test_demo_app():
     async def main():
         app = demo.BackupApp(ROOT)
         async with app.run_test(size=(1200, 760)) as pilot:
-            await pilot.press("f5")
+            start, cancel = app.query_one("#start", ui.Button), app.query_one("#cancel", ui.Button)
+            assert not start.disabled and cancel.disabled  # durum butonlarda görünür
+            await pilot.click(start)
+            await pilot.wait_until(lambda: app.running)
+            assert start.disabled and not cancel.disabled
+            await pilot.click(start)  # devre dışı: ikinci iş başlamaz
             await pilot.wait_until(lambda: app.query_one("#bar").progress >= 1 and not app.running, timeout=15)
-            assert app.query_one("#statusbar").mode == "HAZIR"
+            assert not start.disabled and cancel.disabled
             assert any(kind == "ok" for _, kind in app._toasts)
             assert any("tamamlandı" in line for line in app.log.lines)
             history = app.query_one("#history", ui.Table)

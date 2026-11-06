@@ -432,6 +432,46 @@ def test_fullscreen_toggle_and_preference():
     run(main())
 
 
+def test_demo_toolbar_styles_roles_and_own_theme():
+    from termik.demo import uygulama as demo
+
+    async def main():
+        app = demo.BackupApp(ROOT, theme="okyanus", density="rahat", save_state=False)
+        async with app.run_test(size=(1280, 800)) as pilot:
+            assert not app.query(ui.KeyBar) and not app.query(ui.StatusBar)  # işler butonlarda, kısayol satırı yok
+            toolbar = app.query_one("#toolbar")
+            labels = [b.label for b in toolbar.query(ui.Button)]
+            assert "Ayarlar…" in labels and "⛶ Tam ekran" in labels
+            await pilot.click(toolbar.query_one(ui.FullscreenButton))
+            assert app.fullscreen
+            await pilot.press("f11")
+            assert not app.fullscreen
+            assert app.color_spec(app.query_one("#cancel")) == "red"  # tek ögenin kendi rengi
+            await pilot.click(next(b for b in toolbar.query(ui.Button) if b.label == "Ayarlar…"))
+            w = app._settings
+            assert isinstance(app.active_window, demo.SettingsWindow)
+            field = w.query_one("#tok-field", ui.Select)
+            await pilot.click(field)
+            await pilot.press("down", "enter")  # boxed → filled: her iki pencereye yansır
+            assert app.theme.field == "filled" and w.theme.field == "filled"
+            frame = w.query_one("#tok-frame", ui.Select)
+            following = frame.options[frame.options.index(app.theme.frame) + 1]
+            await pilot.click(frame)
+            await pilot.press("down", "enter")
+            assert app.theme.frame == following
+            values = w.query_one("#role-1", ui.Select)  # "Değerler" grubu: ilerleme çubuğu, kaydırıcı
+            await pilot.click(values)
+            await pilot.press("down", "enter")
+            assert app.roles["ProgressBar"] == app.roles["Slider"] == 3
+            app.set_theme("gece")  # demonun kendi teması: dört renk, seçenekler de dörde çıkar
+            await pilot.pause()
+            assert "gece" in THEMES and len(app.theme.palette) == 4
+            assert len(values.options) == 4 and values.index == 2
+            assert w.query_one("#theme", ui.Select).value == "gece"
+            assert not app._errors
+    run(main())
+
+
 def test_demo_settings_window_drop_and_dialogs():
     from termik.demo import uygulama as demo
 
