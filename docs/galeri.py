@@ -130,7 +130,7 @@ yield ui.MenuBar(ui.Menu("&Dosya", [ui.MenuItem("&Kaydet", kaydet, key="ctrl+s")
     ("cubuklar", "Header, KeyBar, StatusBar", "Başlık, geçerli kısayollar ve durum çubuğu.", '''
 yield ui.Header("termik", "bileşen katmanı", clock=False)
 yield ui.KeyBar()
-yield ui.StatusBar(mode="HAZIR", left="termik demo", right="okyanus · rahat")
+yield ui.StatusBar(mode="HAZIR", left="termik demo", right="fosfor · rahat")
 '''),
 ]
 
@@ -157,7 +157,7 @@ def _sample_folder(root: Path) -> None:
 async def _shoot(name: str, code: str) -> None:
     namespace = {"ui": ui, "math": math, "kaydet": lambda: None}
     exec("def compose(self):\n" + textwrap.indent(code.strip("\n"), "    ") + "\n", namespace)
-    app = type("Galeri", (ui.App,), {"compose": namespace["compose"], "SIZE": (760, 900)})(theme="okyanus")
+    app = type("Galeri", (ui.App,), {"compose": namespace["compose"], "SIZE": (760, 900)})()
     async with app.run_test(size=(760, 900)) as pilot:
         await pilot.pause()
         app.set_focus(None)  # odak halkası görüntüye girmesin

@@ -173,6 +173,9 @@ class SettingsWindow(ui.Window):
                     for label, token in self.STYLES:
                         values = list(ui.theme.CHOICES[token])
                         yield ui.Select(values, index=values.index(getattr(th, token)), label=label, id=f"tok-{token}")
+                    with ui.Row(label="Renk geçişi"):
+                        yield ui.Checkbox("çubuk ve logo geçişli", th.gradient, id="gradient",
+                                          tooltip="Kapalıyken terminal gibi düz renk")
                     dialogs = list(self.DIALOGS.values())
                     yield ui.Select(dialogs, index=dialogs.index(self.DIALOGS[app.dialogs]), label="Dosya diyaloğu",
                                     id="dialogs")
@@ -220,6 +223,11 @@ class SettingsWindow(ui.Window):
         else:
             app.set_theme(**{"name" if key == "theme" else key: value})
 
+    def on_checkbox_changed(self, event: ui.Checkbox.Changed) -> None:
+        event.stop()  # ana pencerenin "Sıkıştır" günlüğüne gitmesin
+        if not self._syncing:
+            self.app.set_theme(gradient=event.value)
+
     def sync(self) -> None:
         """Ana penceredeki f2/f4 ya da görünüm değişince buradaki seçimler de güncellensin."""
         app, th = self.app, self.app.theme
@@ -229,6 +237,7 @@ class SettingsWindow(ui.Window):
                                  *((f"tok-{token}", getattr(th, token)) for _, token in self.STYLES)):
                 select = self.query_one(f"#{key}", ui.Select)
                 select.index = select.options.index(current)
+            self.query_one("#gradient", ui.Checkbox).value = th.gradient
             for i in range(len(self.GROUPS)):  # renk sayısı temaya göre değişir (gece: dört)
                 select = self.query_one(f"#role-{i}", ui.Select)
                 select.options = self._slots()
@@ -242,9 +251,12 @@ class SettingsWindow(ui.Window):
     def save(self) -> None:
         app, th = self.app, self.app.theme
         values = {"theme": th.name, "look": app.look, "density": app.density, "dialogs": app.dialogs}
-        values.update({token: getattr(th, token) for _, token in self.STYLES})
+        values.update({token: getattr(th, token) for _, token in self.STYLES}, gradient=th.gradient)
+        own = th.name not in ui.theme.BUILTIN_THEMES  # "gece" yalnızca bu demoda var: başka uygulamalar tanımaz
+        if own:
+            del values["theme"]
         path = ui.settings.save(values)
-        self.notify(f"kaydedildi: {path.name}", "ok")
+        self.notify(f"kaydedildi: {path.name}" + (f" (tema {th.name} bu demoya özel, yazılmadı)" if own else ""), "ok")
 
 
 def human(n: float) -> str:

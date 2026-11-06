@@ -845,7 +845,7 @@ olmayan bir dosyayı gösterebilir; durum kaydı `run_test` altında yalnızca a
 
 Görünüş üç bağımsız eksende seçilir:
 
-1. **Renk teması** (`theme`): `okyanus` (varsayılan), `günbatımı`, `orman`, `neon`, `mono`, `lavanta`.
+1. **Renk teması** (`theme`): `fosfor` (varsayılan: neon yeşil, kehribar, camgöbeği), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli.
 2. **Görünüm kümesi** (`look`): `terminal` (keskin köşe, dolu kutu butonlar) ya da `modern` (yuvarlak,
    kart zeminli).
 3. **Yoğunluk** (`density`): `sıkı`, `dengeli`, `rahat` (varsayılan), `ferah`.
@@ -858,6 +858,7 @@ Bunların üstüne tek tek **biçim belirteçleri** ezilebilir:
 | `frame` | `faint` (varsayılan; soluk ince çizgi) · `line` · `corners` · `none` (modern görünümde kart) |
 | `focus` | `title` (varsayılan; odakta yalnızca panel başlığı vurgu renginde) · `color` · `double` · `bar` · `none` |
 | `button` | `solid` (varsayılan; butonlar yazıdan ve köşeli form alanlarından ayrılsın diye) · `tinted` · `bracket` · `boxed` · `angle` · `pill` |
+| `gradient` | `false` (varsayılan; çubuk, kaydırıcı, mini grafik ve logo düz renkte) · `true` (renk geçişli) |
 | `bar` | `block` · `segment` · `line` · `ascii` |
 | `selection` | `inverse` · `pointer` |
 | `shadow` | `hard` · `soft` · `none` |

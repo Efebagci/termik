@@ -82,7 +82,7 @@ class Renkli(ui.App):
 
 def test_roles_and_per_element_color():
     async def main():
-        app = Renkli()
+        app = Renkli(theme="okyanus")  # fosfor'da birincil ile "green" aynı neon yeşil
         async with app.run_test() as pilot:
             th = app.theme
             app.query_one("#bar").progress = 1.0
@@ -184,6 +184,34 @@ def test_fullscreen_button_and_settings():
     with preferences('frame = "kalın"\n'), captured() as (_, err):
         assert "frame" not in settings.preferences()["tokens"]
     assert "line, faint, corners, none" in err.getvalue()
+
+
+def test_black_themes_and_flat_colors():
+    assert ui.theme.DEFAULT_THEME == "fosfor" and {"fosfor", "ansi", "sentetik", "kehribar"} <= ui.theme.BUILTIN_THEMES
+    for name, theme in THEMES.items():
+        assert theme.bg == (0, 0, 0), name  # bütün temalar saf siyah zeminli
+    navy = ui.make_theme("lacivert", ["#38bdf8"], background="#0b0f17")
+    assert navy.bg != (0, 0, 0)  # başka zemin isteyen yine verebilir
+
+    class Cubuk(ui.App):
+        def compose(self):
+            yield ui.ProgressBar(id="bar")
+
+    async def main():
+        for gradient in (False, True):
+            app = Cubuk(gradient=gradient)
+            async with app.run_test() as pilot:
+                bar = app.query_one("#bar")
+                bar.progress = 1.0
+                await pilot.pause()
+                surface, c = app.native.get_surface(), bar.content
+                left = surface.get_at((c.x + c.w // 10, c.centery))[:3]
+                right = surface.get_at((c.x + c.w * 7 // 10, c.centery))[:3]
+                assert (left == right) != gradient, gradient  # varsayılan düz renk, gradient=True geçişli
+    run(main())
+    from test_settings import captured, preferences
+    with preferences("gradient = true\n"), captured():
+        assert settings.preferences()["tokens"] == {"gradient": True}
 
 
 if __name__ == "__main__":

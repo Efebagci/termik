@@ -22,7 +22,7 @@ from . import __version__, settings
 def edit_settings() -> None:
     """Tercihleri akış API'siyle sor; seçilen görünüm hemen uygulanır, onaylanırsa dosyaya yazılır."""
     import termik
-    from .theme import DENSITIES, THEMES
+    from .theme import DEFAULT_THEME, DENSITIES, THEMES
 
     path = settings.config_path()
     saved = settings.read_file(path)
@@ -35,7 +35,7 @@ def edit_settings() -> None:
     if overridden:
         termik.warn(f"{', '.join(overridden)} ortam değişkeni dosyadaki değeri ezer")
 
-    theme = termik.choose("Renk teması", list(THEMES), default=prefs.get("theme", "okyanus"))
+    theme = termik.choose("Renk teması", list(THEMES), default=prefs.get("theme", DEFAULT_THEME))
     termik.restyle(theme=theme)
     look = termik.choose("Görünüm", {"terminal · keskin köşe, köşeli butonlar": "terminal",
                                      "modern · yuvarlak köşe, kart zemini": "modern"},

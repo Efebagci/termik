@@ -522,9 +522,15 @@ renkle çizileceği temadan bağımsız `ROLES` tablosunda; her öge ayrıca `co
 çerçeveleri soluk (`frame = "faint"`); içinde odak olan panelde yalnızca başlık vurgu rengine döner
 (`focus = "title"`), çerçeve yanmaz. Görünür tam ekran düğmesi: `ui.FullscreenButton`.
 
+**Siyah zemin turu:** terminal havası için bütün temalar saf siyah zeminli; dört yeni parlak, hafif
+cırtlak tema (`fosfor`, `ansi`, `sentetik`, `kehribar`) eklendi, varsayılan `fosfor`. Eski altı tema
+aynı renklerle siyah zemine geçti. Çubuk, kaydırıcı, mini grafik ve logo artık düz renkte
+(`gradient = false`); renk geçişi `gradient = true` ile açılır. `make_theme` varsayılan olarak siyah
+zemin kurar, `background=` başka zemin verir.
+
 ## Görünüm ayarları
 
-Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
+Renk teması (`THEMES`: `fosfor` (varsayılan: neon yeşil, kehribar, camgöbeği), `ansi`, `sentetik`, `kehribar`, `okyanus`, `günbatımı`, `orman`, `neon`, `mono`, `lavanta`; hepsi saf siyah zeminli) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
 title=…)` ya da çalışırken `app.set_theme(…)` ile verilir. Verilmeyenler kullanıcının
 tercihlerinden gelir (aşağıda **Ayarlar**).
 
@@ -537,6 +543,7 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `frame` | panel çerçevesi: `faint` soluk ince çizgi · `line` belirgin çizgi · `corners` yalnızca köşeler · `none` çizgisiz | `faint` (modern: `none`, kart) |
 | `focus` | içinde odak olan panel: `title` yalnızca başlık vurgu renginde · `color` çerçeve de · `double` çift çizgi · `bar` solda ince çubuk · `none` işaret yok | `title` |
 | `button` | `solid` dolu kutu · `tinted` zeminli `[ Tamam ]` · `bracket` `[ Tamam ]` · `boxed` çerçeveli kutu · `angle` `< Tamam >` · `pill` hap | `solid` (modern: `pill`) |
+| `gradient` | çubuk, kaydırıcı, mini grafik ve logo renk geçişli mi (`true`) yoksa terminal gibi düz renkte mi | `false` |
 | `bar` | `block` `█▊░` · `segment` `▰▱` · `line` `━` · `ascii` `[##--]` | `block` |
 | `selection` | `inverse` tam satır ters renk · `pointer` `❯` + hafif zemin | `inverse` |
 | `toggle` | `drawn` çizilmiş kare kutucuk ve yuvarlak düğme · `text` `[✓]` ve `radio` belirteci | `drawn` |

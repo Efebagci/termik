@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable, Iterator, TypeVar
 
 from .. import settings
 from ..markup import escape
-from ..theme import THEMES, Theme, with_look
+from ..theme import DEFAULT_THEME, THEMES, Theme, with_look
 from . import capture as _capture
 from .common import ICONS, Progress, Shown, WidgetValue, format_table, is_widget
 
@@ -134,7 +134,7 @@ class Session:
     def _style(self) -> Theme:
         """Oturumun geçerli teması: koddaki değerler, yoksa kullanıcının tercihleri, yoksa varsayılanlar."""
         prefs = settings.preferences()
-        return with_look(THEMES[self.theme or prefs.get("theme", "okyanus")], self.look or prefs.get("look", "terminal"),
+        return with_look(THEMES[self.theme or prefs.get("theme", DEFAULT_THEME)], self.look or prefs.get("look", "terminal"),
                          density=self.density or prefs.get("density"), **{**prefs["tokens"], **self.tokens})
 
     def restyle(self, theme: str | None = None, *, look: str | None = None, density: str | None = None,

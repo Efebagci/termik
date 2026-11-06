@@ -278,7 +278,7 @@ Başlık, geçerli kısayollar ve durum çubuğu.
 ```python
 yield ui.Header("termik", "bileşen katmanı", clock=False)
 yield ui.KeyBar()
-yield ui.StatusBar(mode="HAZIR", left="termik demo", right="okyanus · rahat")
+yield ui.StatusBar(mode="HAZIR", left="termik demo", right="fosfor · rahat")
 ```
 
 Bütün bileşenler, seçenekleri ve kavramlar için [başvuru (README)](https://github.com/Efebagci/termik#readme).

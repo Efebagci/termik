@@ -30,6 +30,7 @@ from ..app import App
 from ..draw import Painter
 from ..events import Click, Drop, Key, MouseDown, MouseMove
 from ..markup import Span, escape, plain_text
+from ..theme import DEFAULT_THEME
 from ..widget import Widget, action
 from ..widgets import Button, Checkbox, Input, OptionList, RadioSet, ScrollView
 from . import capture
@@ -877,7 +878,7 @@ class FlowApp(App):
 
     def __init__(self, backend: WindowBackend, *, title: str, theme: str | None = None, look: str | None = None,
                  density: str | None = None, **tokens) -> None:
-        super().__init__(theme=theme or "okyanus", look=look or "terminal", density=density or "rahat",
+        super().__init__(theme=theme or DEFAULT_THEME, look=look or "terminal", density=density or "rahat",
                          title=title, **tokens)
         self.backend = backend
         self.transcript = Transcript()

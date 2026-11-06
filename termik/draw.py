@@ -130,8 +130,13 @@ class Painter:
 
     def gradient_text(self, x: int, y: int, text: str, a: Color, b: Color, *,
                       font: Text | None = None, bold: bool = True) -> int:
-        """Soldan sağa renk geçişli tek satır yazı (logo, başlık). (x, y) yazının sol üstü."""
+        """Tek satır büyük yazı (logo, başlık); theme.gradient açıksa soldan sağa a'dan b'ye renk geçişli,
+        kapalıysa (varsayılan, terminal gibi) düz a renginde. (x, y) yazının sol üstü."""
         f = font or self.heading
+        if not self.theme.gradient:
+            img = f.stack.font(0, bold).render(text, True, a)
+            self.surface.blit(img, (x, y))
+            return img.get_width()
         img = f.stack.font(0, bold).render(text, True, (255, 255, 255))
         img.blit(_gradient(img.get_width(), img.get_height(), a, b), (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         self.surface.blit(img, (x, y))
@@ -488,14 +493,18 @@ class Painter:
             colors: tuple[Color, Color] | None = None, track: Color | None = None) -> None:
         """Bir satır yüksekliğinde ilerleme çubuğu; (x, y) satırın sol üstü.
 
-        block:   CLI'daki █ dolgu + ░ iz; dolgu piksel hassasiyetinde ve renk geçişli
+        block:   CLI'daki █ dolgu + ░ iz; dolgu piksel hassasiyetinde
         segment: ▰▰▰▱▱ bölmeli; son bölme kısmen dolabilir
         line:    rich/pip tarzı ince çizgi
         ascii:   [#####-----]
+
+        Dolgu düz vurgu rengindedir; theme.gradient açıksa vurgudan ikincil renge geçişlidir.
         """
         th = self.theme
         style = style or th.bar
         a, b = colors or (th.accent, th.accent2)
+        if not th.gradient:
+            b = a
         value = min(1.0, max(0.0, value))
         if style == "block":
             n = w // self.ch
@@ -548,12 +557,14 @@ class Painter:
         self.surface.fill(th.accent if active else th.dim, (x, top, 2, thumb))
 
     def spark(self, x: int, y: int, values: list[float], color: Color, *, height: int | None = None) -> int:
-        """Mini grafik: her değer (0..1) bir karakter genişliğinde dikey çubuk; eskiler soluklaşır."""
+        """Mini grafik: her değer (0..1) bir karakter genişliğinde dikey çubuk; düz renkte, theme.gradient
+        açıksa eskiler soluklaşır."""
         h = height or self.text.height
         top = y + (self.row - h) // 2
         n = len(values)
+        fade = self.theme.gradient
         for i, v in enumerate(values):
             bh = max(1, round(h * min(1.0, max(0.0, v))))
-            c = mix(self.panel_bg, color, 0.35 + 0.65 * (i + 1) / n)
+            c = mix(self.panel_bg, color, 0.35 + 0.65 * (i + 1) / n) if fade else color
             self.surface.fill(c, (x + i * self.ch, top + h - bh, self.ch - 1, bh))
         return n * self.ch

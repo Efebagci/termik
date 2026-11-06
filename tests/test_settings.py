@@ -139,7 +139,7 @@ def test_app_uses_preferences_but_code_wins():
             pass
         else:
             raise AssertionError(f"kabul edilmemeliydi: {bad}")
-    assert termik.App().theme.name == "okyanus"  # ayar yoksa varsayılan
+    assert termik.App().theme.name == "fosfor" and termik.App().theme.bg == (0, 0, 0)  # ayar yoksa: siyah zeminli fosfor
     assert termik.with_look(THEMES["mono"], accent="#102030").accent == (16, 32, 48)
 
 

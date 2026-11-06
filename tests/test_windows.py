@@ -463,6 +463,8 @@ def test_demo_toolbar_styles_roles_and_own_theme():
             await pilot.click(values)
             await pilot.press("down", "enter")
             assert app.roles["ProgressBar"] == app.roles["Slider"] == 3
+            await pilot.click(w.query_one("#gradient", ui.Checkbox))  # renk geçişi: varsayılan kapalı
+            assert app.theme.gradient
             app.set_theme("gece")  # demonun kendi teması: dört renk, seçenekler de dörde çıkar
             await pilot.pause()
             assert "gece" in THEMES and len(app.theme.palette) == 4
@@ -484,7 +486,8 @@ def test_demo_settings_window_drop_and_dialogs():
             theme = settings_window.query_one("#theme", ui.Select)
             assert settings_window.focused is theme
             await pilot.press("right")  # sonraki tema: iki pencereye de yansır
-            assert app.theme.name == list(THEMES)[1] and settings_window.theme.name == app.theme.name
+            names = list(THEMES)
+            assert app.theme.name == names[names.index("okyanus") + 1] and settings_window.theme.name == app.theme.name
             assert app._dirty or app.frame_count > 0
             app.query_one("#src").focus()
             await pilot.pause()

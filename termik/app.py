@@ -41,7 +41,7 @@ from .fonts import default_font_paths
 from .dialog import Dialog, PromptDialog
 from .icon import prompt_icon
 from .palette import Command, CommandPalette
-from .theme import DENSITIES, ROLES, THEMES, Theme, mix, register_theme, with_look
+from .theme import DEFAULT_THEME, DENSITIES, ROLES, THEMES, Theme, mix, register_theme, with_look
 from .widget import Screen, Widget, action
 
 _CURSORS = {"hand": pygame.SYSTEM_CURSOR_HAND, "ibeam": pygame.SYSTEM_CURSOR_IBEAM,
@@ -89,7 +89,7 @@ class Window(Widget):
             SIZE = (560, 380)
 
             def compose(self):
-                yield Select(["okyanus", "orman"], id="tema")
+                yield Select(["fosfor", "ansi"], id="tema")
                 yield Button("Kapat", action="window.close")
 
         self.app.open_window(Ayarlar())                       # modal=True: kapanana kadar ötekiler bekler
@@ -875,7 +875,7 @@ class App(Window):
                  dialogs: str | None = None, save_state: bool | None = None, fullscreen: bool | None = None,
                  roles: dict[str, int | str] | None = None, **tokens) -> None:
         """theme, look, density, dialogs ve biçim belirteçleri verilmezse kullanıcının tercihleri (ayar
-        dosyası, TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa okyanus · terminal · rahat
+        dosyası, TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa fosfor · terminal · rahat
         ve işletim sisteminin dosya diyalogları. theme bir ad ya da make_theme() ile yapılmış bir
         Theme olabilir. roles hangi öge türünün paletin kaçıncı rengiyle çizileceğini değiştirir
         ({"Tabs": 2, "ProgressBar": "green"}); verilmeyenler ROLES'taki varsayılandır."""
@@ -884,7 +884,7 @@ class App(Window):
         super().__init__(title=title, icon=icon)
         settings.check_names(theme=theme, look=look, density=density, dialogs=dialogs)
         prefs = settings.preferences()
-        self._theme_name = theme or prefs.get("theme", "okyanus")
+        self._theme_name = theme or prefs.get("theme", DEFAULT_THEME)
         self._look = look or prefs.get("look", "terminal")
         self._density = density or prefs.get("density", "rahat")
         self._tokens = {**prefs["tokens"], **tokens}

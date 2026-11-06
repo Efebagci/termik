@@ -481,7 +481,7 @@ def test_fields_are_boxed_and_toggles_drawn():
                 assert sakla.value == before - 1, field
                 assert not app._errors
         for toggle in CHOICES["toggle"]:
-            app = Alanlar(toggle=toggle)
+            app = Alanlar(toggle=toggle, theme="okyanus")  # fosfor'da ✓'nin yeşili birincil renkle aynı
             async with app.run_test() as pilot:
                 th = app.theme
                 app.set_focus(None)

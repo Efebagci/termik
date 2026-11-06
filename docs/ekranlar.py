@@ -4,7 +4,7 @@
     python docs/ekranlar.py akis grafik     # yalnızca bu gruplar
 
 Gruplar: demo, akis, bilesen, grafik, kolay, pencere. Pencere açılmaz (SDL'in sahte sürücüsü);
-kullanıcının ayar dosyası okunmaz, görüntüler varsayılan görünümle (okyanus · terminal · rahat) alınır.
+kullanıcının ayar dosyası okunmaz, görüntüler varsayılan görünümle (fosfor · terminal · rahat) alınır.
 Bileşen galerisi (docs/galeri/) ayrıca docs/galeri.py ile üretilir.
 """
 
@@ -43,7 +43,7 @@ def shot(pilot, name: str, window=None) -> None:
 async def demo() -> None:
     from termik.demo import uygulama
 
-    app = uygulama.BackupApp(ROOT, theme="okyanus", density="rahat", save_state=False)
+    app = uygulama.BackupApp(ROOT, density="rahat", save_state=False)
     async with app.run_test(size=(1280, 800)) as pilot:
         notes = app.query_one("#notes", ui.TextArea)
         notes.focus()
@@ -276,7 +276,7 @@ async def bilesen() -> None:
                                ("bilesen-select", ("tab", "enter"), {}),
                                ("bilesen-sagtik", None, {}),
                                ("bilesen-modern-menu2", ("alt+z",), {"look": "modern"})):
-        app = _Vitrin(theme="okyanus", **tokens)
+        app = _Vitrin(**tokens)
         async with app.run_test(size=_Vitrin.SIZE) as pilot:
             if name == "bilesen-select":
                 app.query_one("#mod").focus()
@@ -291,7 +291,7 @@ async def bilesen() -> None:
         picture = _sample_image(Path(tmp, "ornek-resim.png"))
         for name, tokens in (("bilesen-kalan", {}), ("bilesen-kalan-bloklar", {"image": "blocks", "field": "filled",
                                                                                  "split": "hidden"})):
-            app = _Kalan(picture, theme="okyanus", **tokens)
+            app = _Kalan(picture, **tokens)
             async with app.run_test(size=_Kalan.SIZE) as pilot:
                 split = app.query_one("#split", ui.Split)
                 await pilot.hover(split, offset=(split._seps[0].centerx - split.region.x, 40))
@@ -326,7 +326,7 @@ class _Grafikler(ui.App):
 
 async def grafik() -> None:
     for name, tokens in (("grafik", {}), ("grafik-braille", {"chart": "braille"})):
-        app = _Grafikler(theme="okyanus", **tokens)
+        app = _Grafikler(**tokens)
         async with app.run_test(size=_Grafikler.SIZE) as pilot:
             chart = app.query_one("#canli", ui.Chart)
             await pilot.hover(chart, offset=(chart.region.w * 3 // 5, chart.region.h // 2))
@@ -337,7 +337,7 @@ async def grafik() -> None:
 # ── sınıf yazmadan kurulmuş araç ──────────────────────────
 
 async def kolay() -> None:
-    app = ui.App(title="Ayarlar", theme="okyanus")
+    app = ui.App(title="Ayarlar")
     app.kaynak = "C:\\ProjelerX"
     app.duzey = 6
 
@@ -377,7 +377,7 @@ async def pencere() -> None:
         (root / "resimler").mkdir()
         for name, size in (("notlar.txt", 1840), ("taslak.txt", 7300), ("bütçe.md", 2950), ("foto.png", 91000)):
             (root / name).write_bytes(b"x" * size)
-        app = uygulama.BackupApp(str(root), theme="okyanus", density="rahat", dialogs="builtin", save_state=False)
+        app = uygulama.BackupApp(str(root), density="rahat", dialogs="builtin", save_state=False)
         async with app.run_test(size=(1100, 640)) as pilot:
             task = asyncio.ensure_future(app.ask_save("Notları kaydet", folder=root, name="notlar",
                                                      filetypes=[("Metin", "*.txt")]))

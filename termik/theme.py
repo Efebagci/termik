@@ -83,6 +83,7 @@ class Theme:
     frame: str = "faint"        # panel çerçevesi: line çizgi · faint soluk çizgi · corners yalnızca köşeler · none çizgisiz
     focus: str = "title"        # içinde odak olan panel: color çerçeve vurgu renginde · double çift çizgi · title yalnızca başlık · bar solda ince çubuk · none işaret yok
     button: str = "solid"       # bracket [ Tamam ] · tinted zeminli [ Tamam ] · angle < Tamam > · solid dolu blok · boxed çerçeveli kutu · pill hap
+    gradient: bool = False      # çubuklar ve logo renk geçişli mi (terminal gibi düz renk varsayılan)
     bar: str = "block"          # block █▊░ · segment ▰▱ · line ━━─ · ascii [##--]
     selection: str = "inverse"  # inverse: tam satır ters renk · pointer: ❯ + hafif zemin
     shadow: str = "hard"        # hard: kaydırılmış koyu blok · soft: bulanık · none
@@ -152,10 +153,11 @@ class Theme:
         return replace(self, font_size=round(self.font_size * k), radius=max(1, round(self.radius * k)))
 
 
-# Nötr taban: audn web arayüzündeki koyu lacivert-gri palet
+# Nötr taban: terminal gibi saf siyah zemin; panel, yükseltilmiş yüzey ve çizgi siyahtan açılarak türer.
+# make_theme(background=…) başka bir taban verir (ör. eski lacivert "#0b0f17").
 _BASE = {
-    "bg": "#0b0f17", "surface": "#0e131d", "raised": "#1a2232",
-    "border": "#243049", "text": "#e8edf6",
+    "bg": "#000000", "surface": "#050505", "raised": "#121212",
+    "border": "#242424", "text": "#e5e7eb",
 }
 
 
@@ -172,7 +174,7 @@ def _as_color(value) -> Color:
 def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=None,
                ok: str = "#34d399", warn: str = "#fbbf24", err: str = "#f87171", neutral: str = "#64748b",
                blue: str = "#60a5fa", magenta: str = "#c084fc", cyan: str = "#22d3ee",
-               background: str | None = None, tint: float = 0.035) -> Theme:
+               background: str | None = None, tint: float = 0.02) -> Theme:
     """Renklerden tam tema üret:
 
         ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])   # birincil, ikincil, …
@@ -180,8 +182,9 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
     colors birincil, ikincil, üçüncül ve isteğe bağlı sonraki renklerdir ("#rrggbb" ya da (r, g, b));
     accent=, accent2=, accent3= tek tek de verilebilir. Üçten az renk verilirse eksikler renk çemberinde
     döndürülerek türetilir. ok, warn, err durum renkleri; neutral soluk yazı tonu (ikincil yazı bununla
-    ana yazı renginin arasından türetilir). background zeminin tabanını değiştirir. Zeminler birincil
-    renge tint oranında çekilir; böylece her tema kendi havasını taşır.
+    ana yazı renginin arasından türetilir). Zemin varsayılan olarak saf siyahtır; background başka bir
+    taban verir. Zemin olduğu gibi kalır; panel, yükseltilmiş yüzey ve çizgi birincil renge tint oranında
+    çekilir, böylece her tema kendi havasını taşır.
 
     Kaydedilen tema (register_theme) adıyla seçilir: App(theme="deniz"), ayar dosyası, komut paleti.
     """
@@ -202,7 +205,7 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
         bases.update(bg=background, surface="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.02),
                      raised="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.07),
                      border="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.14))
-    base = {k: mix(hex_color(v), a, tint if k != "text" else 0) for k, v in bases.items()}
+    base = {k: mix(hex_color(v), a, 0 if k in ("bg", "text") else tint) for k, v in bases.items()}  # zemin olduğu gibi
     faint = hex_color(neutral)
     return Theme(
         name=name, **base,
@@ -213,8 +216,17 @@ def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=Non
     )
 
 
-# audn-cli'daki altı tema, aynı adlarla; her biri üç renkli: birincil, ikincil, üçüncül
+# Siyah zeminli, parlak ve hafif cırtlak terminal renkleri; ardından audn-cli'daki altı tema (aynı
+# renkler, siyah zemin). Her biri üç renkli: birincil, ikincil, üçüncül.
 THEMES: dict[str, Theme] = {t.name: t for t in (
+    make_theme("fosfor", ["#39ff14", "#ffb000", "#00e5ff"], ok="#39ff14", warn="#ffd000", err="#ff3b30",
+               neutral="#6b6b6b", blue="#3b9dff", magenta="#ff4dff", cyan="#00e5ff"),
+    make_theme("ansi", ["#00ffff", "#ff00ff", "#ffff00"], ok="#00ff00", warn="#ffff00", err="#ff3030",
+               neutral="#707070", blue="#5c5cff", magenta="#ff00ff", cyan="#00ffff"),
+    make_theme("sentetik", ["#ff2a6d", "#05d9e8", "#f9f871"], ok="#01ff89", warn="#ffb000", err="#ff3355",
+               neutral="#6d6a7c", blue="#4d7cff", magenta="#ff4dd2", cyan="#05d9e8"),
+    make_theme("kehribar", ["#ffb000", "#ff5f00", "#ffe680"], ok="#9cff00", warn="#ffd000", err="#ff3b30",
+               neutral="#7a6a50", blue="#5fafff", magenta="#ff5fd7", cyan="#5fffd7"),
     make_theme("okyanus", ["#38bdf8", "#818cf8", "#fdba74"], ok="#34d399", warn="#fbbf24", err="#f87171", neutral="#64748b"),
     make_theme("günbatımı", ["#fb923c", "#f472b6", "#a78bfa"], ok="#4ade80", warn="#facc15", err="#ef4444", neutral="#78716c"),
     make_theme("orman", ["#4ade80", "#a3e635", "#fbbf24"], ok="#22c55e", warn="#eab308", err="#f87171", neutral="#6b7280"),
@@ -222,6 +234,10 @@ THEMES: dict[str, Theme] = {t.name: t for t in (
     make_theme("mono", ["#e5e7eb", "#9ca3af", "#cbd5e1"], ok="#d1d5db", warn="#9ca3af", err="#f87171", neutral="#6b7280", tint=0),
     make_theme("lavanta", ["#c084fc", "#f0abfc", "#6ee7b7"], ok="#86efac", warn="#fcd34d", err="#fb7185", neutral="#6b7280"),
 )}
+
+
+DEFAULT_THEME = "fosfor"  # kod ve kullanıcı tercihi tema vermezse
+BUILTIN_THEMES = frozenset(THEMES)  # termik ile gelenler; register_theme ile eklenenler yalnızca o uygulamada
 
 
 def register_theme(theme: Theme) -> Theme:
