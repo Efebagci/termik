@@ -709,6 +709,8 @@ async def can_close(self):
   `fullscreen = true` (`TERMIK_FULLSCREEN=evet`). Öncelik: kod > ortam > ayar dosyası.
 - Tam ekran "masaüstü" kipidir: ekran çözünürlüğü değişmez, Alt+Tab hızlı kalır. Yerleşim karakter
   birimiyle olduğu için arayüz yeni boyuta kendiliğinden yayılır.
+- Görünür düğme: `yield ui.FullscreenButton()` (kendiliğinden eklenmez; istediğin yere koy). Yazısı
+  duruma göre `⛶ Tam ekran` / `⛶ Pencere` olur, F11 ile de güncellenir.
 
 ### 13.3 Dosya diyalogları
 
@@ -853,7 +855,8 @@ Bunların üstüne tek tek **biçim belirteçleri** ezilebilir:
 | Belirteç | Değerler |
 |---|---|
 | `title` | `inverse` · `inline` · `tab` |
-| `focus` | `color` · `double` |
+| `frame` | `faint` (varsayılan; soluk ince çizgi) · `line` · `corners` · `none` (modern görünümde kart) |
+| `focus` | `title` (varsayılan; odakta yalnızca panel başlığı vurgu renginde) · `color` · `double` · `bar` · `none` |
 | `button` | `solid` (varsayılan; butonlar yazıdan ve köşeli form alanlarından ayrılsın diye) · `tinted` · `bracket` · `boxed` · `angle` · `pill` |
 | `bar` | `block` · `segment` · `line` · `ascii` |
 | `selection` | `inverse` · `pointer` |
@@ -870,7 +873,7 @@ Bunların üstüne tek tek **biçim belirteçleri** ezilebilir:
 | `form_label` | `left` · `top` |
 | `chart` | `smooth` · `braille` · `blocks` |
 | `radius`, `panel_fill`, `font_size`, `line_height`, `pad_x`, `pad_y` | sayılar / mantıksal |
-| renkler | `accent = "#ff8800"` gibi |
+| renkler | `accent = "#ff8800"`, `accent2`, `accent3` gibi |
 
 ```python
 App(theme="neon", look="modern", density="ferah", bar="segment", accent="#ff8800")
@@ -879,6 +882,32 @@ self.set_theme("orman", density="sıkı")         # çalışırken; bütün penc
 
 **Koda tema yazmadan önce düşün:** kullanıcı kendi tercihini ayar dosyasında tutar. Kod tema
 vermezse onun tercihi geçerli olur. Tema yalnızca uygulamanın kimliği için gerekiyorsa ver.
+
+### 16.1 Renkler: palet, roller, öge başına renk
+
+Her tema üç renkten oluşur: birincil (`accent`), ikincil (`accent2`), üçüncül (`accent3`);
+`make_theme` ile dördüncül ve sonrası da eklenir. Hangi öge türünün kaçıncı renkle çizileceği
+temadan bağımsız `ui.ROLES` tablosundadır: 1 etkileşim (Button, Input, Select, Checkbox…, odak),
+2 değer (ProgressBar, Slider, Sparkline), 3 gezinme ve yapı (Tabs, Tree, Table, Header, StatusBar,
+KeyBar).
+
+```python
+deniz = ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])  # 4 renk
+ui.register_theme(deniz)                      # App(theme="deniz"), ayar dosyası, komut paleti
+
+class Uygulama(ui.App):
+    ROLES = {"Tabs": 2}                       # bu uygulamada sekmeler ikincil renkte
+
+    def compose(self):
+        yield ui.Button("Sil", self.sil, variant="primary", color="red")   # tek öge
+        yield ui.ProgressBar(color="quaternary")                         # dördüncül renk
+```
+
+Renk tanımı her yerde aynıdır: sıra numarası (`2`), sıra adı (`"secondary"`, `"ikincil"`,
+`"tertiary"`, `"üçüncül"`, `"quaternary"`, `"dördüncül"`), tema rengi (`"green"`, `"red"`, `"dim"`),
+`"#rrggbb"` ya da `(r, g, b)`. Çalışırken: `app.set_roles(Tabs=3)`, `öge.color = 2; öge.refresh()`.
+Kendi bileşenini çizerken `p.theme.accent` kullan: öge kendi rengiyle çizilirken vurgu rengi o renktir,
+roller ve `color=` kendiliğinden işler. Markup'ta `[secondary]`, `[tertiary]`, `[ikincil]` geçer.
 
 ---
 
@@ -969,6 +998,7 @@ içinde etiket), `bind=` (değerli bileşenlerde), `persist=`.
 | Bileşen | Kurulum | Değer / mesaj |
 |---|---|---|
 | `Button` | `Button("Kaydet", fn_ya_da_eylem, key="ctrl+s", variant="primary")` | `Pressed` |
+| `FullscreenButton` | `FullscreenButton()` | tam ekranı açar/kapatır |
 | `Input` | `Input(değer, label=, placeholder=, password=, on_submit=)` | `.value`; `Changed`, `Submitted` |
 | `TextArea` | `TextArea(rows=6, line_numbers=True, submit_key="ctrl+enter")` | `.text`; `Changed` |
 | `Checkbox` | `Checkbox("Sıkıştır", True)` | `.value`; `Changed` |
@@ -1055,7 +1085,8 @@ Bu bölüm kod üreten modeller için yazıldı. Kısa, kesin kurallar:
    uydurma; emin değilsen bileşenin `on_change=` / ikinci argüman geri çağırmasını kullan.
 9. **Değer okumak için `bind=` tercih et**; `query_one(...).value` yalnızca gerektiğinde.
 10. **Kullanıcı/dosya kaynaklı yazıyı `ui.escape()` et.**
-11. **Tema, görünüm, yoğunluğu kodda sabitleme**, kullanıcı istemedikçe. Belirteç adları ve değerleri
+11. **Renk için `color=` ve `ROLES` kullan**, ögeyi çizen kodda sabit renk yazma; kendi temanı
+    `ui.make_theme` + `ui.register_theme` ile yap. **Tema, görünüm, yoğunluğu kodda sabitleme**, kullanıcı istemedikçe. Belirteç adları ve değerleri
     yalnızca [16](#16)'daki tablodakilerdir; olmayan değer `ValueError` verir.
 12. **Ek pencerede `self.window`**, uygulama geneli için `self.app`.
 13. **Var olmayan API uydurma.** Bu belgede, [galeride](bilesenler.md) ve [tariflerde](tarifler.md)

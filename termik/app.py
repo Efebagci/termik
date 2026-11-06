@@ -41,7 +41,7 @@ from .fonts import default_font_paths
 from .dialog import Dialog, PromptDialog
 from .icon import prompt_icon
 from .palette import Command, CommandPalette
-from .theme import DENSITIES, THEMES, Theme, mix, with_look
+from .theme import DENSITIES, ROLES, THEMES, Theme, mix, register_theme, with_look
 from .widget import Screen, Widget, action
 
 _CURSORS = {"hand": pygame.SYSTEM_CURSOR_HAND, "ibeam": pygame.SYSTEM_CURSOR_IBEAM,
@@ -165,6 +165,10 @@ class Window(Widget):
     def fullscreen(self, value: bool) -> None:
         self._fullscreen = bool(value)
         self._apply_fullscreen()
+        for widget in self.walk():  # FullscreenButton yazısını güncellesin
+            changed = getattr(widget, "_fullscreen_changed", None)
+            if changed is not None:
+                changed(self._fullscreen)
 
     def _apply_fullscreen(self) -> None:
         """Masaüstü çözünürlüğünde kenarsız tam ekran (ekran kipi değişmez, Alt+Tab hızlı kalır)."""
@@ -767,11 +771,20 @@ class Window(Widget):
         area = widget.region.clip(clip)
         if area.w <= 0 or area.h <= 0:
             return
-        self.painter.surface.set_clip(area)
+        p = self.painter
+        p.surface.set_clip(area)
+        base = p.theme
+        spec = self._app.color_spec(widget)
+        themed = self._app._themed(base, spec) if spec is not None else base
+        if themed is not base:  # öge kendi rengiyle: vurgu rengi geçici olarak onun rengi
+            p.set_theme(themed)
         try:
-            widget.render(self.painter)
+            widget.render(p)
         except Exception as exc:
             self._app._report(exc)
+        finally:
+            if themed is not base:
+                p.set_theme(base)
         inner = widget.child_clip().clip(clip)
         for child in widget.children:
             self._paint(child, inner)
@@ -854,15 +867,20 @@ class App(Window):
 
     SIZE = (1200, 760)
     SAVE_STATE = False
+    ROLES: dict[str, int | str] = {}  # ui.ROLES'un üstüne bu uygulamanın öge renkleri: {"Tabs": 2}
     STATE_NAME: str | None = None
 
     def __init__(self, *, theme: str | None = None, look: str | None = None, density: str | None = None,
                  title: str | None = None, icon: str | Path | pygame.Surface | None = None,
                  dialogs: str | None = None, save_state: bool | None = None, fullscreen: bool | None = None,
-                 **tokens) -> None:
+                 roles: dict[str, int | str] | None = None, **tokens) -> None:
         """theme, look, density, dialogs ve biçim belirteçleri verilmezse kullanıcının tercihleri (ayar
         dosyası, TERMIK_* ortam değişkenleri) geçerli olur; onlar da yoksa okyanus · terminal · rahat
-        ve işletim sisteminin dosya diyalogları."""
+        ve işletim sisteminin dosya diyalogları. theme bir ad ya da make_theme() ile yapılmış bir
+        Theme olabilir. roles hangi öge türünün paletin kaçıncı rengiyle çizileceğini değiştirir
+        ({"Tabs": 2, "ProgressBar": "green"}); verilmeyenler ROLES'taki varsayılandır."""
+        if isinstance(theme, Theme):  # kendi teması: adıyla da seçilebilsin
+            theme = register_theme(theme).name
         super().__init__(title=title, icon=icon)
         settings.check_names(theme=theme, look=look, density=density, dialogs=dialogs)
         prefs = settings.preferences()
@@ -891,6 +909,8 @@ class App(Window):
         self._windows: list[Window] = []           # açık pencereler, açılış sırasıyla (ilki ana pencere)
         self._focus_window: Window | None = None   # klavye odağındaki pencere
         self._mouse_window: Window | None = None   # farenin üstünde olduğu pencere
+        self._roles: dict[str, int | str] = {**ROLES, **self.ROLES, **(roles or {})}
+        self._tints: dict[tuple, Theme] = {}       # (tema, renk) → o renkle çizilecek tema
 
     # ── tema ──────────────────────────────────────────────
 
@@ -910,10 +930,12 @@ class App(Window):
     def density(self) -> str:
         return self._density
 
-    def set_theme(self, name: str | None = None, *, look: str | None = None, density: str | None = None,
+    def set_theme(self, name: str | Theme | None = None, *, look: str | None = None, density: str | None = None,
                   **tokens) -> None:
         """Renk temasını, görünümü, yoğunluğu ya da tek tek biçim belirteçlerini değiştir; bütün
-        pencerelere (ve temaya uyan pencere simgelerine) yansır."""
+        pencerelere (ve temaya uyan pencere simgelerine) yansır. name bir Theme de olabilir."""
+        if isinstance(name, Theme):
+            name = register_theme(name).name
         settings.check_names(theme=name, look=look, density=density)
         if name is not None:
             self._theme_name = name
@@ -922,12 +944,55 @@ class App(Window):
         if density is not None:
             self._density = density
         self._tokens.update(tokens)
+        self._tints.clear()
         if self._painter is not None:
             self._painter.set_theme(self._make_theme())
             for window in self._windows:
                 window._invalidate(True)
                 if window._icon is None:
                     window._apply_icon()
+
+    # ── öge renkleri ─────────────────────────────────────
+
+    @property
+    def roles(self) -> dict[str, int | str]:
+        """Öge türü → paletteki sırası (ya da renk adı); değiştirmek için set_roles()."""
+        return dict(self._roles)
+
+    def set_roles(self, **roles: int | str | None) -> None:
+        """Öge türlerinin rengini değiştir: set_roles(Tabs=2, ProgressBar="green"); None varsayılana döndürür."""
+        for name, spec in roles.items():
+            if spec is None:
+                self._roles.pop(name, None)
+                if name in ROLES:
+                    self._roles[name] = ROLES[name]
+            else:
+                self._roles[name] = spec
+        self._tints.clear()
+        for window in self._windows:
+            window._invalidate(False)
+
+    def color_spec(self, widget: Widget):
+        """Ögenin çizileceği renk: kendi color='ı, yoksa türünün (ya da üst türünün) rolü, yoksa None."""
+        if widget.color is not None:
+            return widget.color
+        roles = self._roles
+        for cls in type(widget).__mro__:
+            spec = roles.get(cls.__name__)
+            if spec is not None:
+                return spec
+        return None
+
+    def _themed(self, base: Theme, spec) -> Theme:
+        key = (id(base), tuple(spec) if isinstance(spec, list) else spec)
+        theme = self._tints.get(key)
+        if theme is None:
+            if isinstance(spec, int) and not isinstance(spec, bool) and (spec - 1) % len(base.palette) == 0:
+                theme = base  # birincil: tema olduğu gibi
+            else:
+                theme = base.tinted(spec)
+            self._tints[key] = theme
+        return theme
 
     def get_commands(self) -> Iterable[Command]:
         """Palete eklenecek komutlar. Varsayılan: tema ve yoğunluk seçimi; ezilip genişletilebilir."""

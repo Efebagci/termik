@@ -85,3 +85,27 @@ class Button(Widget):
     @action("Bas", key="enter,space", show=False, palette=False)
     def activate(self) -> None:
         self.press()
+
+
+class FullscreenButton(Button):
+    """Pencereyi tam ekrana alıp geri döndüren buton; F11 ile de değişir, yazısı duruma uyar.
+
+        ui.FullscreenButton()                                  # ⛶ Tam ekran / ⛶ Pencere
+        ui.FullscreenButton("Büyüt", exit_label="Küçült")
+
+    Kendiliğinden hiçbir yere eklenmez; istenen yere (menü satırı, araç çubuğu) konur.
+    """
+
+    def __init__(self, label: str = "⛶ Tam ekran", *, exit_label: str = "⛶ Pencere", **kwargs) -> None:
+        super().__init__(label, self._toggle, **kwargs)
+        self._labels = (label, exit_label)
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self._fullscreen_changed(self.window.fullscreen)
+
+    def _toggle(self) -> None:
+        self.window.fullscreen = not self.window.fullscreen
+
+    def _fullscreen_changed(self, on: bool) -> None:
+        self.label = self._labels[1 if on else 0]

@@ -190,7 +190,7 @@ class Painter:
               info: Markup | None = None, footer: Markup | None = None, fill: Color | bool = True) -> None:
         """┌─ Başlık ──── bilgi ─┐ biçiminde panel; yazılar çizginin üstüne oturur.
 
-        Başlık biçimi theme.title, odak biçimi theme.focus ile seçilir. info üst kenarın, footer
+        Başlık biçimi theme.title, çizgi theme.frame, odak işareti theme.focus ile seçilir. info üst kenarın, footer
         alt kenarın sağına yazılır. fill=True panel zeminini temaya göre doldurur (düz görünümde
         doldurmaz); bir renk verilirse her zaman o renkle doldurur (yüzen kutular için).
         """
@@ -201,7 +201,10 @@ class Painter:
                 self.round_rect(rect, th.surface)
         elif fill:
             self.round_rect(rect, fill)
-        line = th.accent if focused else th.border
+        resting = mix(th.border, th.bg, 0.5) if th.frame == "faint" else th.border
+        lit = focused and th.focus in ("color", "double")  # çerçeve vurgu rengine döner
+        named = focused and th.focus in ("color", "double", "title")  # başlık vurgu rengine döner
+        line = th.accent if lit else resting
         double = focused and th.focus == "double"
         r = min(th.radius, rect.w // 2, rect.h // 2)
         pad, th_h = self.ch // 2, self.text.height
@@ -220,17 +223,22 @@ class Painter:
             fw = self.text.width(footer)
             fx = rect.right - lead - fw
             bottom_gaps.append((fx - pad, fx + fw + pad))
-        self.outline(rect, line, r, top_gaps=top_gaps, bottom_gaps=bottom_gaps)
+        if th.frame == "corners":
+            self._corner_marks(rect, line, self.ch * 2, self.row)
+        elif th.frame != "none":
+            self.outline(rect, line, r, top_gaps=top_gaps, bottom_gaps=bottom_gaps)
+        if focused and th.focus == "bar":  # solda, içeride ince vurgu çubuğu
+            self.surface.fill(th.accent, (rect.x + 3, rect.y + self.row // 2 + 2, 2, max(0, rect.h - self.row - 4)))
         if double:  # ╔═ eski DOS diyaloglarındaki gibi odakta çift çizgi
             self.outline(rect.inflate(-6, -6), line, max(0, r - 3), top_gaps=top_gaps, bottom_gaps=bottom_gaps)
         mid = rect.y + (1 if double else 0)  # yazıların dikey ortası çizgi(ler)in üstüne gelir
         if title:
             g0, g1 = top_gaps[0]
             if th.title == "inverse":  # ters renkli etiket
-                self.surface.fill(th.accent if focused else th.border, (g0, mid - th_h // 2 - 1, g1 - g0, th_h + 2))
-                fg = th.bg if focused else th.text
+                self.surface.fill(th.accent if named else th.border, (g0, mid - th_h // 2 - 1, g1 - g0, th_h + 2))
+                fg = th.bg if named else th.text
             else:
-                fg = th.accent if focused else th.dim
+                fg = th.accent if named else th.dim
                 if th.title == "tab":  # ┤ Başlık ├
                     tick = th_h // 3
                     self.surface.fill(line, (g0, rect.y - tick, 1, tick * 2 + 1))
@@ -240,6 +248,15 @@ class Painter:
             self.text.draw(self.surface, ix, mid - th_h // 2, info, color=th.dim)
         if footer:
             self.text.draw(self.surface, fx, rect.bottom - 1 - th_h // 2, footer, color=th.dim)
+
+    def _corner_marks(self, rect: pygame.Rect, color: Color, w: int, h: int) -> None:
+        """Yalnızca dört köşe: ⌜ ⌝ ⌞ ⌟ gibi kısa çizgiler."""
+        s = self.surface
+        x0, y0, x1, y1 = rect.x, rect.y, rect.right - 1, rect.bottom - 1
+        w, h = min(w, rect.w // 3), min(h, rect.h // 3)
+        for x, y, dx, dy in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x0, y1, 1, -1), (x1, y1, -1, -1)):
+            s.fill(color, (x if dx > 0 else x - w + 1, y, w, 1))
+            s.fill(color, (x, y if dy > 0 else y - h + 1, 1, h))
 
     @property
     def pad(self) -> tuple[int, int]:

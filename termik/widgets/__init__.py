@@ -1,7 +1,7 @@
 """Hazır bileşenler."""
 
 from .bars import Header, KeyBar, StatusBar
-from .button import Button
+from .button import Button, FullscreenButton
 from .canvas import Canvas
 from .chart import Chart
 from .form import Form
@@ -25,7 +25,7 @@ from .toggles import Checkbox, RadioSet
 from .tree import DirectoryTree, Tree, TreeNode
 
 __all__ = [
-    "Button", "Canvas", "Chart", "Checkbox", "DirectoryTree", "Form", "Header", "Image", "Input", "KeyBar", "Label", "Log",
+    "Button", "FullscreenButton", "Canvas", "Chart", "Checkbox", "DirectoryTree", "Form", "Header", "Image", "Input", "KeyBar", "Label", "Log",
     "OptionList", "Panel", "ProgressBar", "RadioSet", "ScrollView", "Select", "Slider", "Sparkline", "Spinbox",
     "Split", "Static", "StatusBar", "Tab", "Table", "Tabs", "TextArea", "Tree", "TreeNode",
 ]

@@ -377,7 +377,8 @@ class Uygulama(ui.App):
   (`action="window.close"`); önceksiz adlar ek pencerede bulunamazsa uygulamada aranır.
 - **Tam ekran.** F11 her pencerede tam ekranı açar/kapatır; koddan `self.window.fullscreen = True`.
   Açılışta tam ekran için `FULLSCREEN = True`, `App(fullscreen=True)` ya da `fullscreen = true` ayarı.
-  Masaüstü kipidir: ekran çözünürlüğü değişmez.
+  Masaüstü kipidir: ekran çözünürlüğü değişmez. Görünür bir düğme için `ui.FullscreenButton()`
+  istenen yere konur (kendiliğinden eklenmez); yazısı duruma göre `⛶ Tam ekran` / `⛶ Pencere` olur.
 - **Dosya diyalogları.** `await self.ask_open(…)`, `ask_open(multiple=True)`, `ask_save(name=…)`,
   `ask_folder()` `pathlib.Path` (vazgeçilirse `None`) döndürür. Varsayılan olarak işletim sisteminin
   diyaloğu açılır: Windows'ta Common Item Dialog, macOS'ta Finder diyaloğu, Linux'ta zenity ya da
@@ -404,6 +405,7 @@ class Uygulama(ui.App):
 |---|---|
 | `Static`, `Label` | Markup yazı; `Static` genişliğe göre kaydırır, `Label` `…` ile kısalır |
 | `Button` | Dolu kutu (`button` belirteciyle `[ Tamam ]` ya da çerçeveli de olur); ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık; `disabled=True` soluk çizilir (vurgu dolgusu yok) ve basılmaz |
+| `FullscreenButton` | Pencereyi tam ekrana alıp geri döndüren buton; F11 ile de değişir, yazısı duruma uyar |
 | `Input` | Tek satır yazı: ince çerçeveli kutu (`field`), blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan; `prompt="$"` başına istem koyar |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
 | `Checkbox`, `RadioSet` | Çizilmiş kutucuk ve yuvarlak düğme (işaretliyken vurgu renginde; `toggle = "text"` ile `[✓]` ve `(•)`); tık, Space, ←/→ |
@@ -442,7 +444,7 @@ class Uygulama(ui.App):
 
 ![resim, sayı alanı, Canvas ve bölünebilir paneller](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-kalan.png)
 
-![aynı ekran: resim terminal blokları, sağda oklu sayı alanı, gizli ayraç](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-kalan-bloklar.png)
+![aynı ekran: resim terminal blokları, dolu zeminli alanlar, gizli ayraç](https://raw.githubusercontent.com/Efebagci/termik/main/docs/ekran/bilesen-kalan-bloklar.png)
 
 ## Kararlar
 
@@ -514,6 +516,12 @@ kutuda (`field = "boxed"`; `filled`, `underline` ya da eski hali `plain` seçile
 radyo düğmesi yazı karakteri değil çizilmiş şekil (`toggle = "drawn"`, eski hali `text`). Butonlar
 da aynı sebeple varsayılan olarak dolu kutu (`button = "solid"`). Devre dışı buton ve alanlar soluk.
 
+**Renkler ve paneller turu:** her tema üç renkli (birincil, ikincil, üçüncül); `make_theme` ile
+istenen kadar renkli tema yapılır, `register_theme` adıyla seçilir kılar. Hangi öge türünün kaçıncı
+renkle çizileceği temadan bağımsız `ROLES` tablosunda; her öge ayrıca `color=` alır. Panel
+çerçeveleri soluk (`frame = "faint"`); içinde odak olan panelde yalnızca başlık vurgu rengine döner
+(`focus = "title"`), çerçeve yanmaz. Görünür tam ekran düğmesi: `ui.FullscreenButton`.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -526,7 +534,8 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `line_height` | fontun doğal satır yüksekliğinin katı (terminallerdeki gibi) | `1.15` |
 | `pad_x`, `pad_y` | panel iç boşluğu: karakter / satır cinsinden | `1.75`, `0.65` |
 | `title` | `inverse` ters renkli etiket · `inline` `┌─ Başlık ─┐` · `tab` `┤ Başlık ├` | `inverse` |
-| `focus` | `color` vurgu rengi · `double` odakta çift çizgi | `color` |
+| `frame` | panel çerçevesi: `faint` soluk ince çizgi · `line` belirgin çizgi · `corners` yalnızca köşeler · `none` çizgisiz | `faint` (modern: `none`, kart) |
+| `focus` | içinde odak olan panel: `title` yalnızca başlık vurgu renginde · `color` çerçeve de · `double` çift çizgi · `bar` solda ince çubuk · `none` işaret yok | `title` |
 | `button` | `solid` dolu kutu · `tinted` zeminli `[ Tamam ]` · `bracket` `[ Tamam ]` · `boxed` çerçeveli kutu · `angle` `< Tamam >` · `pill` hap | `solid` (modern: `pill`) |
 | `bar` | `block` `█▊░` · `segment` `▰▱` · `line` `━` · `ascii` `[##--]` | `block` |
 | `selection` | `inverse` tam satır ters renk · `pointer` `❯` + hafif zemin | `inverse` |
@@ -546,6 +555,50 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 
 `LOOKS` içinde iki hazır küme var: `terminal` (yukarıdaki varsayılanlar) ve `modern` (ilk
 prototipin yuvarlak, kart zeminli hali).
+
+## Renkler
+
+Her tema üç renkten oluşur: **birincil**, **ikincil**, **üçüncül** (gri tonları, zemin ve yazı
+rengi dışında). Hangi öge türünün kaçıncı renkle çizileceği temadan bağımsız bir tabloda (`ui.ROLES`)
+durur; tema değişince ögeler sıralarını korur, yalnızca renkler değişir.
+
+| Sıra | Varsayılan olarak kullanan ögeler |
+|---|---|
+| 1 · birincil | etkileşim ve odak: `Button`, `Input`, `TextArea`, `Select`, `Spinbox`, `Checkbox`, `RadioSet`, `OptionList`, `Panel` (odak), `MenuBar`, `Split`, `Canvas`, `Chart` |
+| 2 · ikincil | değer ve ilerleme: `ProgressBar`, `Slider`, `Sparkline` |
+| 3 · üçüncül | gezinme ve yapı: `Tabs`, `Tree`, `Table`, `Header`, `StatusBar`, `KeyBar` |
+
+```python
+import termik as ui
+
+# 1. Kendi temanı yap: birincil, ikincil, üçüncül ve istersen daha fazlası
+deniz = ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])
+ui.register_theme(deniz)            # artık App(theme="deniz"), ayar dosyası ve komut paleti tanır
+
+class Uygulama(ui.App):
+    ROLES = {"Tabs": 2, "ProgressBar": 4}       # 2. Öge türlerinin rengini bu uygulama için değiştir
+
+    def compose(self):
+        yield ui.Button("Kaydet", self.kaydet, variant="primary")
+        yield ui.Button("Sil", self.sil, variant="primary", color="red")   # 3. Tek bir öge
+        yield ui.ProgressBar(color=3)                                    # paletin 3. rengi
+        yield ui.Static("[tertiary]üçüncül renkte yazı[/]")
+
+Uygulama(theme="deniz").run()
+```
+
+- **Tema yapmak:** `ui.make_theme(ad, renkler, ok=, warn=, err=, neutral=, background=)`. Renkler
+  `"#rrggbb"` ya da `(r, g, b)`; üçten az verilirse eksikler renk çemberinde türetilir. `App(theme=…)`
+  bir `Theme` nesnesi de alır (kendiliğinden kaydedilir).
+- **Rolleri değiştirmek:** sınıfta `ROLES = {…}`, `App(roles={…})` ya da çalışırken
+  `app.set_roles(Tabs=2)` (`None` varsayılana döndürür). Anahtar bileşen sınıfının adıdır; alt
+  sınıflar üst sınıflarının rolünü kullanır.
+- **Tek bir ögenin rengi:** her bileşen `color=` alır: sıra numarası (`2`), sıra adı (`"secondary"`,
+  `"ikincil"`, `"tertiary"`, `"üçüncül"`, `"quaternary"`…), tema rengi (`"green"`, `"dim"`) ya da
+  `"#ff8800"`. Çalışırken `öge.color = 3; öge.refresh()`.
+- **Markup'ta:** `[secondary]…[/]`, `[tertiary]…[/]`, `[ikincil]…[/]`, `[accent3]…[/]`.
+- Bir öge kendi rengiyle çizilirken temanın vurgu rengi o renk olur; kendi bileşenini yazarken
+  `p.theme.accent` kullanmak yeter, rol ve `color=` kendiliğinden işler.
 
 ## Ayarlar
 
@@ -593,6 +646,7 @@ python tests/test_extras.py
 python tests/test_easy.py
 python tests/test_chart_state.py
 python docs/galeri.py          # bileşen galerisini (görüntüler + docs/bilesenler.md) yeniden üret
+python docs/ekranlar.py        # README ekran görüntülerini (docs/ekran) yeniden üret
 ```
 
 `termik akis` (kaynağı `termik/demo/akis.py`) akış API'siyle yazılmış bir yedekleme betiği: klasör
@@ -644,7 +698,7 @@ python -m twine upload dist/*
 | `pyproject.toml`, `LICENSE` | Paket tanımı (setuptools); MIT lisansı |
 | `termik/__main__.py`, `settings.py` | `termik` komutu (`demo`, `akis`, `yeni`, `çalıştır`, `ayarlar`); ayar dosyası ve `TERMIK_*` ortam değişkenleri |
 | `termik/plot.py` | Grafik verisi (pygame'siz): seriler, eksen adımları, Türkçe sayı biçimi, terminal için blok grafik |
-| `docs/` | Belgeler (GitHub'da okunur): giriş (`README.md`), bileşen galerisi (`galeri.py` üretir), tarifler, öğretici rehber (`rehber.md`); README görselleri |
+| `docs/` | Belgeler (GitHub'da okunur): giriş (`README.md`), bileşen galerisi (`galeri.py` üretir), tarifler, öğretici rehber (`rehber.md`), README görüntüleri (`ekranlar.py` üretir); README görselleri |
 | `termik/dev.py` | Proje iskeletleri (`termik yeni`) ve kaydettikçe yeniden başlatan izleyici (`termik çalıştır --izle`) |
 | `termik/flow/` | Akış API'si: `Session`, `form`, `Field` ve modül fonksiyonları (`__init__.py`); pencere arka ucu (`window.py`: döküm, soru ve form bileşenleri, thread köprüsü); terminal arka ucu (`terminal.py`: ANSI, yerinde güncellenen satırlar); `print`/`input`/logging yakalama (`capture.py`); ortak ilerleme kaydı ve biçimleme (`common.py`) |
 | `termik/app.py` | `Window`: ekranlar, odak, fare ve klavye, ipucu, bildirimler, çizim; `App` (ana pencere): asyncio döngüsü, olayların pencerelere dağıtılması, modal kilit, zamanlayıcılar, işçiler; `Pilot` |

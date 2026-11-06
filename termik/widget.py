@@ -115,7 +115,8 @@ class Widget:
                  width: SizeSpec = None, height: SizeSpec = None, min_width: SizeSpec = None,
                  max_width: SizeSpec = None, min_height: SizeSpec = None, max_height: SizeSpec = None,
                  padding: PaddingSpec = 0, gap: SizeSpec = 0, disabled: bool = False, display: bool = True, tooltip: str | None = None,
-                 label: str | None = None, bind: str | None = None, persist: bool | None = None) -> None:
+                 label: str | None = None, bind: str | None = None, persist: bool | None = None,
+                 color: int | str | tuple[int, int, int] | None = None) -> None:
         if bind is not None and type(self).bind_value is None:
             raise TypeError(f"{type(self).__name__} bind= almaz (bağlanacak bir değeri yok)")
         self.id = id
@@ -144,6 +145,7 @@ class Widget:
         self._pulling = False
         self._in_form = False     # Form'un doğrudan çocuğu: etiketini Form çizer
         self.persist = persist    # SAVE_STATE açıkken bağlı değeri saklansın mı (None: bileşen karar verir)
+        self.color = color        # bu ögenin rengi: sıra (2), ad ("ikincil", "green", "#ff8800"); None: türünün rolü
         for child in children:
             self._add_child(child)
 

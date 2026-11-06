@@ -7,6 +7,8 @@ pahalı hem de yüzey tipine bağlı, opak renk ise her yerde aynı davranır.
 
 from __future__ import annotations
 
+import colorsys
+import re
 from dataclasses import dataclass, replace
 
 Color = tuple[int, int, int]
@@ -31,13 +33,17 @@ def mix(a: Color, b: Color, t: float) -> Color:
 
 _COLOR_FIELDS = frozenset({
     "bg", "surface", "raised", "border", "text", "dim", "faint",
-    "accent", "accent2", "red", "green", "yellow", "blue", "magenta", "cyan",
+    "accent", "accent2", "accent3", "red", "green", "yellow", "blue", "magenta", "cyan",
 })
+
+# Paletin sıra adları: color="secondary", color="ikincil", color=2 aynı rengi verir
+SLOT_NAMES = ("primary", "secondary", "tertiary", "quaternary", "quinary", "senary")
+_SLOT_TR = ("birincil", "ikincil", "üçüncül", "dördüncül", "beşincil", "altıncıl")
 
 # Markup'ta rich/ANSI alışkanlığıyla yazılabilecek eş anlamlılar
 _ALIASES = {
     "white": "text", "black": "bg", "gray": "dim", "grey": "dim",
-    "primary": "accent", "secondary": "accent2", "purple": "magenta",
+    "purple": "magenta",
     "ok": "green", "warn": "yellow", "err": "red", "error": "red", "info": "blue",
 }
 
@@ -55,14 +61,16 @@ class Theme:
     dim: Color      # ikincil yazı
     faint: Color    # ipucu, placeholder, zaman damgası
     # vurgular ve durum renkleri
-    accent: Color
-    accent2: Color
+    accent: Color   # birincil renk
+    accent2: Color  # ikincil
+    accent3: Color  # üçüncül
     red: Color
     green: Color
     yellow: Color
     blue: Color
     magenta: Color
     cyan: Color
+    extra: tuple[Color, ...] = ()  # dördüncül ve sonraki renkler (make_theme(colors=[…]) ile)
     # ölçüler (ölçek 1.0'da piksel)
     font_size: int = 15
     line_height: float = 1.15   # fontun doğal satır yüksekliğinin katı (terminallerdeki gibi)
@@ -72,7 +80,8 @@ class Theme:
     pad_y: float = 0.65         # panel iç boşluğu ve gruplar arası, satır cinsinden
     panel_fill: bool = False    # paneller zeminden ayrı renkte mi (kart görünümü)
     title: str = "inverse"      # inverse ters renkli etiket · inline ┌─ Başlık ─┐ · tab ┤ Başlık ├
-    focus: str = "color"        # color: odakta vurgu rengi · double: odakta çift çizgi
+    frame: str = "faint"        # panel çerçevesi: line çizgi · faint soluk çizgi · corners yalnızca köşeler · none çizgisiz
+    focus: str = "title"        # içinde odak olan panel: color çerçeve vurgu renginde · double çift çizgi · title yalnızca başlık · bar solda ince çubuk · none işaret yok
     button: str = "solid"       # bracket [ Tamam ] · tinted zeminli [ Tamam ] · angle < Tamam > · solid dolu blok · boxed çerçeveli kutu · pill hap
     bar: str = "block"          # block █▊░ · segment ▰▱ · line ━━─ · ascii [##--]
     selection: str = "inverse"  # inverse: tam satır ters renk · pointer: ❯ + hafif zemin
@@ -89,15 +98,52 @@ class Theme:
     form_label: str = "left"    # left etiketler solda hizalı · top alanın üstünde
     chart: str = "smooth"       # smooth yumuşak çizgiler · braille ⣀⡠ noktaları · blocks ▁▃▇ blokları
 
+    @property
+    def palette(self) -> tuple[Color, ...]:
+        """Temanın renkleri sırayla: birincil, ikincil, üçüncül, (dördüncül…)."""
+        return (self.accent, self.accent2, self.accent3, *self.extra)
+
+    def slot(self, n: int) -> Color:
+        """n'inci renk (1 birincil); palette yetmezse baştan döner."""
+        palette = self.palette
+        return palette[(n - 1) % len(palette)]
+
     def color(self, name: str) -> Color | None:
-        """Markup'taki renk adını çöz: 'green', 'accent', '#ff8800'… Bilinmiyorsa None."""
+        """Renk adını çöz: 'green', 'accent', 'secondary', 'ikincil', 'accent4', '#ff8800'…
+        Bilinmiyorsa None."""
         if name.startswith("#"):
             try:
                 return hex_color(name)
             except ValueError:
                 return None
         name = _ALIASES.get(name, name)
-        return getattr(self, name) if name in _COLOR_FIELDS else None
+        if name in _COLOR_FIELDS:
+            return getattr(self, name)
+        for names in (SLOT_NAMES, _SLOT_TR):
+            if name in names:
+                return self.slot(names.index(name) + 1)
+        m = re.fullmatch(r"accent(\d)", name)
+        return self.slot(int(m.group(1))) if m and m.group(1) != "0" else None
+
+    def resolve(self, spec) -> Color | None:
+        """Bir renk tanımını çöz: sıra numarası (2), ad ("ikincil", "green", "#ff8800") ya da (r, g, b)."""
+        if spec is None:
+            return None
+        if isinstance(spec, bool):
+            raise TypeError("renk bool olamaz")
+        if isinstance(spec, int):
+            return self.slot(spec)
+        if isinstance(spec, str):
+            return self.color(spec)
+        return tuple(spec)[:3]
+
+    def tinted(self, spec) -> Theme:
+        """Bu temanın, vurgu rengi spec olan kopyası: bir öge kendi rengiyle çizilirken kullanılır.
+        Sıra numarası verilirse ikincil ve üçüncül de paletteki sırayı izler (2 → 2, 3, 1)."""
+        if isinstance(spec, int) and not isinstance(spec, bool):
+            return replace(self, accent=self.slot(spec), accent2=self.slot(spec + 1), accent3=self.slot(spec + 2))
+        color = self.resolve(spec)
+        return self if color is None or color == self.accent else replace(self, accent=color)
 
     def scaled(self, k: float) -> Theme:
         """HiDPI ekranlar için font ve köşe yarıçapını k ile büyüt."""
@@ -113,44 +159,97 @@ _BASE = {
 }
 
 
-def make_theme(name: str, *, accent: str, accent2: str, ok: str, warn: str, err: str, neutral: str,
-               blue: str = "#60a5fa", magenta: str = "#c084fc", cyan: str = "#22d3ee",
-               tint: float = 0.035) -> Theme:
-    """Birkaç vurgu renginden tam tema üret.
+def _hue_shift(color: Color, degrees: float) -> Color:
+    h, l, s = colorsys.rgb_to_hls(*(c / 255 for c in color))
+    r, g, b = colorsys.hls_to_rgb((h + degrees / 360) % 1, l, s)
+    return round(r * 255), round(g * 255), round(b * 255)
 
-    Zeminler vurgu rengine `tint` oranında çekilir; böylece her tema kendi havasını taşır
-    (günbatımı hafif sıcak, orman hafif yeşil…). `neutral` soluk yazı tonudur; ikincil yazı
-    (dim) bununla ana yazı renginin arasından türetilir.
+
+def _as_color(value) -> Color:
+    return hex_color(value) if isinstance(value, str) else tuple(value)[:3]
+
+
+def make_theme(name: str, colors=None, *, accent=None, accent2=None, accent3=None,
+               ok: str = "#34d399", warn: str = "#fbbf24", err: str = "#f87171", neutral: str = "#64748b",
+               blue: str = "#60a5fa", magenta: str = "#c084fc", cyan: str = "#22d3ee",
+               background: str | None = None, tint: float = 0.035) -> Theme:
+    """Renklerden tam tema üret:
+
+        ui.make_theme("deniz", ["#38bdf8", "#f472b6", "#a3e635", "#fbbf24"])   # birincil, ikincil, …
+
+    colors birincil, ikincil, üçüncül ve isteğe bağlı sonraki renklerdir ("#rrggbb" ya da (r, g, b));
+    accent=, accent2=, accent3= tek tek de verilebilir. Üçten az renk verilirse eksikler renk çemberinde
+    döndürülerek türetilir. ok, warn, err durum renkleri; neutral soluk yazı tonu (ikincil yazı bununla
+    ana yazı renginin arasından türetilir). background zeminin tabanını değiştirir. Zeminler birincil
+    renge tint oranında çekilir; böylece her tema kendi havasını taşır.
+
+    Kaydedilen tema (register_theme) adıyla seçilir: App(theme="deniz"), ayar dosyası, komut paleti.
     """
-    a = hex_color(accent)
-    base = {k: mix(hex_color(v), a, tint if k != "text" else 0) for k, v in _BASE.items()}
+    given = [_as_color(c) for c in (colors or ())]
+    for i, value in enumerate((accent, accent2, accent3)):
+        if value is not None:
+            while len(given) <= i:
+                given.append(None)
+            given[i] = _as_color(value)
+    if not given or given[0] is None:
+        raise ValueError("make_theme: en az birincil renk gerekli")
+    a = given[0]
+    second = given[1] if len(given) > 1 and given[1] is not None else _hue_shift(a, 60)
+    third = given[2] if len(given) > 2 and given[2] is not None else _hue_shift(a, 180)
+    bases = dict(_BASE)
+    if background is not None:
+        bg = hex_color(background)
+        bases.update(bg=background, surface="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.02),
+                     raised="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.07),
+                     border="#%02x%02x%02x" % mix(bg, (255, 255, 255), 0.14))
+    base = {k: mix(hex_color(v), a, tint if k != "text" else 0) for k, v in bases.items()}
     faint = hex_color(neutral)
     return Theme(
         name=name, **base,
         dim=mix(faint, base["text"], 0.38), faint=faint,
-        accent=a, accent2=hex_color(accent2),
+        accent=a, accent2=second, accent3=third, extra=tuple(c for c in given[3:] if c is not None),
         red=hex_color(err), green=hex_color(ok), yellow=hex_color(warn),
         blue=hex_color(blue), magenta=hex_color(magenta), cyan=hex_color(cyan),
     )
 
 
-# audn-cli'daki altı tema, aynı adlar ve vurgularla
+# audn-cli'daki altı tema, aynı adlarla; her biri üç renkli: birincil, ikincil, üçüncül
 THEMES: dict[str, Theme] = {t.name: t for t in (
-    make_theme("okyanus", accent="#38bdf8", accent2="#818cf8", ok="#34d399", warn="#fbbf24", err="#f87171", neutral="#64748b"),
-    make_theme("günbatımı", accent="#fb923c", accent2="#f472b6", ok="#4ade80", warn="#facc15", err="#ef4444", neutral="#78716c"),
-    make_theme("orman", accent="#4ade80", accent2="#a3e635", ok="#22c55e", warn="#eab308", err="#f87171", neutral="#6b7280"),
-    make_theme("neon", accent="#22d3ee", accent2="#e879f9", ok="#4ade80", warn="#fde047", err="#fb7185", neutral="#71717a"),
-    make_theme("mono", accent="#e5e7eb", accent2="#9ca3af", ok="#d1d5db", warn="#9ca3af", err="#f87171", neutral="#6b7280", tint=0),
-    make_theme("lavanta", accent="#c084fc", accent2="#f0abfc", ok="#86efac", warn="#fcd34d", err="#fb7185", neutral="#6b7280"),
+    make_theme("okyanus", ["#38bdf8", "#818cf8", "#fdba74"], ok="#34d399", warn="#fbbf24", err="#f87171", neutral="#64748b"),
+    make_theme("günbatımı", ["#fb923c", "#f472b6", "#a78bfa"], ok="#4ade80", warn="#facc15", err="#ef4444", neutral="#78716c"),
+    make_theme("orman", ["#4ade80", "#a3e635", "#fbbf24"], ok="#22c55e", warn="#eab308", err="#f87171", neutral="#6b7280"),
+    make_theme("neon", ["#22d3ee", "#e879f9", "#a3e635"], ok="#4ade80", warn="#fde047", err="#fb7185", neutral="#71717a"),
+    make_theme("mono", ["#e5e7eb", "#9ca3af", "#cbd5e1"], ok="#d1d5db", warn="#9ca3af", err="#f87171", neutral="#6b7280", tint=0),
+    make_theme("lavanta", ["#c084fc", "#f0abfc", "#6ee7b7"], ok="#86efac", warn="#fcd34d", err="#fb7185", neutral="#6b7280"),
 )}
+
+
+def register_theme(theme: Theme) -> Theme:
+    """Temayı adıyla seçilebilir yap: App(theme="ad"), ayar dosyasında theme = "ad", komut paleti."""
+    THEMES[theme.name] = theme
+    return theme
+
+
+# Hangi öge türü paletin kaçıncı rengiyle çizilir; temadan bağımsızdır. Anahtar bileşen sınıfının adı
+# (alt sınıflar üst sınıfınkini kullanır), değer sıra numarası ya da renk adı. App(roles={…}),
+# sınıfta ROLES = {…} ya da app.set_roles(Tabs=3) değiştirir; tek bir öge için color= verilir.
+ROLES: dict[str, int | str] = {
+    # birincil: etkileşim ve odak
+    "Button": 1, "Input": 1, "TextArea": 1, "Select": 1, "Spinbox": 1, "Checkbox": 1, "RadioSet": 1,
+    "OptionList": 1, "Panel": 1, "MenuBar": 1, "Split": 1, "Canvas": 1, "Chart": 1,
+    # ikincil: değer ve ilerleme
+    "ProgressBar": 2, "Slider": 2, "Sparkline": 2,
+    # üçüncül: gezinme ve yapı
+    "Tabs": 3, "Tree": 3, "Table": 3, "Header": 3, "StatusBar": 3, "KeyBar": 3,
+}
 
 # Hazır biçim kümeleri: herhangi bir renk temasıyla birleştirilebilir
 LOOKS: dict[str, dict] = {
-    "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="solid",
+    "terminal": dict(radius=0, panel_fill=False, title="inverse", frame="faint", focus="title", button="solid",
                      bar="block", selection="inverse", shadow="hard", radio="paren",
                      tabs="inverse", slider="bar", select="bracket", image="smooth", spin="bracket",
                      split="line", field="boxed", toggle="drawn"),
-    "modern": dict(radius=6, panel_fill=True, title="inline", focus="color", button="pill",
+    "modern": dict(radius=6, panel_fill=True, title="inline", frame="none", focus="title", button="pill",
                    bar="block", selection="pointer", shadow="soft", radio="dot",
                    tabs="underline", slider="line", select="underline", image="smooth", spin="stacked",
                    split="line", field="filled", toggle="drawn"),
@@ -168,7 +267,8 @@ DENSITIES: dict[str, dict] = {
 # Biçim belirteçlerinin alabileceği değerler; ayar dosyası ve ortam değişkenleri bunlarla denetlenir
 CHOICES: dict[str, tuple[str, ...]] = {
     "title": ("inverse", "inline", "tab"),
-    "focus": ("color", "double"),
+    "frame": ("line", "faint", "corners", "none"),
+    "focus": ("color", "double", "title", "bar", "none"),
     "button": ("bracket", "tinted", "angle", "solid", "boxed", "pill"),
     "bar": ("block", "segment", "line", "ascii"),
     "selection": ("inverse", "pointer"),

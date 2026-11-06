@@ -224,7 +224,8 @@ class Split(Widget):
             active = i == self._hover_sep or (dragging and i == self._drag)
             if th.split == "hidden" and not active:
                 continue
-            color = th.accent if active else th.border
+            resting = th.border if th.frame == "line" else mix(th.border, th.bg, 0.5)  # panellerle aynı soluklukta
+            color = th.accent if active else resting
             if th.split == "bar":
                 p.surface.fill(mix(th.bg, color, 0.55 if active else 0.45), r)
                 continue

@@ -22,11 +22,11 @@ class Sparkline(Widget):
     default_height = "auto"
 
     def __init__(self, data: Iterable[float] | None = None, *, label: str | None = None, value_format: str | Callable | None = None,
-                 max_value: float | None = None, color: str = "green", maxlen: int = 240, **kwargs) -> None:
+                 max_value: float | None = None, maxlen: int = 240, **kwargs) -> None:
         super().__init__(**kwargs)
         self.data: list[float] = list(data or [])[-maxlen:]
         self.label, self.value_format, self.max_value = label, value_format, max_value
-        self.color, self.maxlen = color, maxlen
+        self.maxlen = maxlen
 
     def append(self, value: float) -> None:
         self.data.append(value)
@@ -58,4 +58,4 @@ class Sparkline(Widget):
         h = c.h - 2 if c.h > p.row else p.text.height
         y = c.y + (c.h - h) // 2 - (p.row - h) // 2  # spark() yüksekliği satıra göre ortalar
         p.spark(right - len(values) * p.ch, y, [max(0.0, v / top) for v in values],
-                th.color(self.color) or th.green, height=h)
+                th.accent, height=h)

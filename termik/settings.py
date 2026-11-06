@@ -40,7 +40,7 @@ DIALOGS = {"native": "native", "yerel": "native", "sistem": "native", "os": "nat
            "builtin": "builtin", "yerleşik": "builtin", "termik": "builtin"}
 
 # biçim belirteçleri ve varsayılanları; renklerin varsayılanı yok (temadan gelir)
-TOKENS: dict[str, Any] = {f.name: f.default for f in fields(Theme) if f.name != "name"}
+TOKENS: dict[str, Any] = {f.name: f.default for f in fields(Theme) if f.name not in ("name", "extra")}
 KEYS = ("theme", "look", "density", "mode", "dialogs", "fullscreen", "font", "font_bold", *TOKENS)
 
 _HEADER = """\

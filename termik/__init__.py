@@ -31,7 +31,7 @@ from . import settings  # noqa: E402
 from .flow import (Field, Password, ask, ask_path, chart, choose, choose_many, confirm, error, form,  # noqa: E402,A004
                    info, ok, print, progress, restyle, rule, setup, show, spinner, table, track, warn)
 from .markup import escape, plain_text  # noqa: E402
-from .theme import DENSITIES, LOOKS, THEMES, Theme, with_look  # noqa: E402
+from .theme import DENSITIES, LOOKS, ROLES, THEMES, Theme, make_theme, register_theme, with_look  # noqa: E402
 
 try:  # bileşen katmanı pygame-ce ister; yoksa akış API'si terminalde çalışmayı sürdürür
     import pygame as _pygame  # noqa: F401
@@ -48,9 +48,10 @@ else:
     from .popup import Popup  # noqa: E402
     from .reactive import reactive  # noqa: E402
     from .widget import Column, Row, Screen, Spacer, Widget, action  # noqa: E402
-    from .widgets import (Button, Canvas, Chart, Checkbox, DirectoryTree, Form, Header, Image, Input, KeyBar,  # noqa: E402
-                          Label, Log, OptionList, Panel, ProgressBar, RadioSet, ScrollView, Select, Slider,
-                          Sparkline, Spinbox, Split, Static, StatusBar, Tab, Table, Tabs, TextArea, Tree, TreeNode)
+    from .widgets import (Button, Canvas, Chart, Checkbox, DirectoryTree, Form, FullscreenButton, Header, Image,  # noqa: E402
+                          Input, KeyBar, Label, Log, OptionList, Panel, ProgressBar, RadioSet, ScrollView, Select,
+                          Slider, Sparkline, Spinbox, Split, Static, StatusBar, Tab, Table, Tabs, TextArea, Tree,
+                          TreeNode)
 
 
 def __getattr__(name: str):
