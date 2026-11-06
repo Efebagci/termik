@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import termik as ui  # noqa: E402
+import pygame  # noqa: E402
 from termik.menu import MenuPopup  # noqa: E402
 from termik.theme import CHOICES  # noqa: E402
 from termik.widgets.select import _SelectPopup  # noqa: E402
@@ -425,6 +426,83 @@ def test_disabled_button_looks_disabled():
                 assert any(near(c, th.accent) for c in colours(surface, primary.region)), style
                 assert not app._errors
     run(main())
+
+
+def test_fields_are_boxed_and_toggles_drawn():
+    def near(a, b, tolerance=14):
+        return max(abs(x - y) for x, y in zip(a[:3], b)) <= tolerance
+
+    def colours(surface, rect):
+        return [surface.get_at((x, y)) for x in range(rect.left, rect.right) for y in range(rect.top, rect.bottom)]
+
+    class Alanlar(ui.App):
+        def compose(self):
+            with ui.Form():
+                yield ui.Input("yazı", label="Ad", id="ad")
+                yield ui.Select(["Elle", "Her gün"], label="Zamanlama", id="zaman")
+                yield ui.Spinbox(5, min=1, max=9, label="Sakla", id="sakla")
+                yield ui.Input("komut", prompt="$", label="Kabuk", id="kabuk")
+                yield ui.Input("kilitli", label="Kilitli", disabled=True, id="kilit")
+                with ui.Row(label="Seçenekler", gap=2):
+                    yield ui.Checkbox("Açık", True, id="acik")
+                    yield ui.Checkbox("Kapalı", id="kapali")
+                yield ui.RadioSet("Tam", "Artımlı", label="Mod", id="mod")
+
+    async def main():
+        for field in CHOICES["field"]:
+            app = Alanlar(field=field)
+            async with app.run_test() as pilot:
+                th = app.theme
+                ad, zaman, sakla = app.query_one("#ad"), app.query_one("#zaman"), app.query_one("#sakla")
+                app.set_focus(zaman)
+                app._render()
+                surface = app.native.get_surface()
+                for widget in (ad, zaman, sakla):
+                    r = widget.content
+                    left_edge = surface.get_at((r.x, r.centery))[:3]
+                    bottom = surface.get_at((r.centerx, r.bottom - 1))[:3]
+                    if field == "boxed":  # sol kenarda çerçeve, odaktakinde vurgu rengi
+                        assert not near(left_edge, th.bg, 4), (field, widget.id)
+                        assert near(left_edge, th.accent) == (widget is zaman), (field, widget.id)
+                    elif field == "filled":
+                        assert not near(surface.get_at((r.x + 2, r.y + 2))[:3], th.bg, 4), (field, widget.id)
+                    elif field == "underline":
+                        assert not near(bottom, th.bg, 4) and near(left_edge, th.bg, 4), (field, widget.id)
+                    elif widget is not zaman:  # plain: kutu yok (odaktaki köşeli seçim zaten ters renkli)
+                        assert near(left_edge, th.bg, 4) and near(bottom, th.bg, 4), (field, widget.id)
+                assert (ad._text_x > ad.content.x + p_ch(app)) == (field == "plain")  # ❯ yalnızca kutusuz alanda
+                assert app.query_one("#kabuk")._text_x > app.query_one("#kabuk").content.x + p_ch(app)  # prompt= her biçimde
+                kilit = app.query_one("#kilit")
+                assert not any(near(c, th.text, 30) for c in colours(surface, kilit.content)), field  # devre dışı yazı sönük
+                before = sakla.value
+                await pilot.click(sakla, offset=(sakla._plus.centerx - sakla.region.x, sakla._plus.centery - sakla.region.y))
+                await pilot.click(sakla, offset=(sakla._minus.centerx - sakla.region.x, 5))
+                await pilot.click(sakla, offset=(sakla._minus.centerx - sakla.region.x, 5))
+                assert sakla.value == before - 1, field
+                assert not app._errors
+        for toggle in CHOICES["toggle"]:
+            app = Alanlar(toggle=toggle)
+            async with app.run_test() as pilot:
+                th = app.theme
+                app.set_focus(None)
+                app._render()
+                surface = app.native.get_surface()
+                on, off = app.query_one("#acik"), app.query_one("#kapali")
+                lead = lambda w: pygame.Rect(w.content.x, w.content.y, app.painter.ch * 3, app.painter.row)  # noqa: E731
+                drawn = toggle == "drawn"
+                assert any(near(c, th.accent) for c in colours(surface, lead(on))) == drawn, toggle  # dolu kare
+                assert not any(near(c, th.accent) for c in colours(surface, lead(off))), toggle
+                mod = app.query_one("#mod")
+                assert any(near(c, th.accent) for c in colours(surface, mod._rects[0])), toggle  # seçili düğme
+                assert ("[✓]" in ui.plain_text(on._markup(app.painter))) == (not drawn)
+                await pilot.click(off)
+                assert off.value
+                assert not app._errors
+    run(main())
+
+
+def p_ch(app) -> int:
+    return app.painter.ch
 
 
 if __name__ == "__main__":

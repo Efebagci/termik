@@ -189,7 +189,10 @@ class OptionList(Widget):
             x = c.x + p.ch * 2 + p.ch // 2
             on = i in self.selected
             if self.multi:
-                p.write(x, y, ("\\[✓]" if on else "\\[ ]") if fg else p.check(on), color=fg)
+                if th.toggle == "drawn":  # ters renkli satırda şekil satırın renklerini alır
+                    p.draw_check(x, y, on, color=fg, mark=(th.accent if focused else th.border) if fg else None)
+                else:
+                    p.write(x, y, ("\\[✓]" if on else "\\[ ]") if fg else p.check(on), color=fg)
                 x += p.ch * 4
             label = _highlight(self.options[i], positions, fg is not None)
             color = fg or (th.text if current or on else th.dim)

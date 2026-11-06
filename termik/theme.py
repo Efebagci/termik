@@ -77,12 +77,14 @@ class Theme:
     bar: str = "block"          # block █▊░ · segment ▰▱ · line ━━─ · ascii [##--]
     selection: str = "inverse"  # inverse: tam satır ters renk · pointer: ❯ + hafif zemin
     shadow: str = "hard"        # hard: kaydırılmış koyu blok · soft: bulanık · none
-    radio: str = "paren"        # paren (•) ( ) · dot ● ○
+    toggle: str = "drawn"       # drawn çizilmiş kutucuk ve yuvarlak düğme · text [✓] ve radio belirteci
+    radio: str = "paren"        # toggle = "text" iken: paren (•) ( ) · dot ● ○
     tabs: str = "inverse"       # inverse ters renkli · folder klasör sekmesi · underline alt çizgi · bracket [ Genel ]
     slider: str = "bar"         # bar ilerleme çubuğu gibi · line ince iz ve yuvarlak tutamak · value ◂ 60 ▸
-    select: str = "bracket"     # bracket [ Artımlı ▾ ] · arrows ◂ Artımlı ▸ · underline altı çizili
+    field: str = "boxed"        # Input, Select, Spinbox kutusu: boxed ince çerçeve · filled dolu zemin · underline alt çizgi · plain kutusuz
+    select: str = "bracket"     # field = "plain" iken: bracket [ Artımlı ▾ ] · arrows ◂ Artımlı ▸ · underline altı çizili
     image: str = "smooth"       # smooth yumuşak ölçek · pixel iri pikseller · blocks terminal gibi ▀ yarım bloklar
-    spin: str = "bracket"       # bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾
+    spin: str = "bracket"       # field = "plain" iken: bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾
     split: str = "line"         # line ince çizgi ve ⋮ tutamak · bar dolu sütun · hidden yalnızca fare gelince
     form_label: str = "left"    # left etiketler solda hizalı · top alanın üstünde
     chart: str = "smooth"       # smooth yumuşak çizgiler · braille ⣀⡠ noktaları · blocks ▁▃▇ blokları
@@ -147,11 +149,11 @@ LOOKS: dict[str, dict] = {
     "terminal": dict(radius=0, panel_fill=False, title="inverse", focus="color", button="solid",
                      bar="block", selection="inverse", shadow="hard", radio="paren",
                      tabs="inverse", slider="bar", select="bracket", image="smooth", spin="bracket",
-                     split="line"),
+                     split="line", field="boxed", toggle="drawn"),
     "modern": dict(radius=6, panel_fill=True, title="inline", focus="color", button="pill",
                    bar="block", selection="pointer", shadow="soft", radio="dot",
                    tabs="underline", slider="line", select="underline", image="smooth", spin="stacked",
-                   split="line"),
+                   split="line", field="filled", toggle="drawn"),
 }
 
 # Yoğunluk kümeleri: satır yüksekliği (doğal yüksekliğin katı) ve panel iç boşlukları
@@ -171,9 +173,11 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "bar": ("block", "segment", "line", "ascii"),
     "selection": ("inverse", "pointer"),
     "shadow": ("hard", "soft", "none"),
+    "toggle": ("drawn", "text"),
     "radio": ("paren", "dot"),
     "tabs": ("inverse", "folder", "underline", "bracket"),
     "slider": ("bar", "line", "value"),
+    "field": ("boxed", "filled", "underline", "plain"),
     "select": ("bracket", "arrows", "underline"),
     "image": ("smooth", "pixel", "blocks"),
     "spin": ("bracket", "arrows", "stacked"),

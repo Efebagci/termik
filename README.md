@@ -404,10 +404,10 @@ class Uygulama(ui.App):
 |---|---|
 | `Static`, `Label` | Markup yazı; `Static` genişliğe göre kaydırır, `Label` `…` ile kısalır |
 | `Button` | Dolu kutu (`button` belirteciyle `[ Tamam ]` ya da çerçeveli de olur); ikinci argüman fonksiyon ya da eylem adı, `key=` kısayolu, `on_press=`, `variant="primary"`; Enter/Space/tık; `disabled=True` soluk çizilir (vurgu dolgusu yok) ve basılmaz |
-| `Input` | Tek satır yazı: blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan |
+| `Input` | Tek satır yazı: ince çerçeveli kutu (`field`), blok imleç, seçim, pano, kelime kelime gezinme; `label=` ile etiketli alan; `prompt="$"` başına istem koyar |
 | `TextArea` | Çok satırlı yazı: kelime sınırından kaydırma, seçim, pano, geri al/yinele, girinti koruma, satır numaraları, yazdıkça uzama (`max_rows`), gönderme tuşu (`submit_key="ctrl+enter"`) |
-| `Checkbox`, `RadioSet` | `[✓]` ve `(•)`; tık, Space, ←/→ |
-| `Select` | Açılır seçim kutusu: ⏎ ya da tık altında süzülebilir listeyi açar, ←/→ açmadan değiştirir; genişliği en uzun seçeneğe göre sabit |
+| `Checkbox`, `RadioSet` | Çizilmiş kutucuk ve yuvarlak düğme (işaretliyken vurgu renginde; `toggle = "text"` ile `[✓]` ve `(•)`); tık, Space, ←/→ |
+| `Select` | Açılır seçim kutusu (Input ile aynı kutu, sağda ▾): ⏎ ya da tık altında süzülebilir listeyi açar, ←/→ açmadan değiştirir; genişliği en uzun seçeneğe göre sabit |
 | `Slider` | Kaydırıcı: `min`, `max`, `step`; ←/→ adım, PgUp/PgDn onda bir, Home/End uçlar, fareyle sürükleme ve tekerlek |
 | `Tabs`, `Tab` | Sekmeli kapsayıcı: `with ui.Tabs(): with ui.Tab("Genel"): …`; ctrl+tab ya da başlığa tık; odak gizli sekmedeki bir alana geçerse o sekme açılır |
 | `OptionList` | Süzülebilir seçenek listesi: yazdıkça bulanık süzer (Türkçe harfler gevşek eşleşir), `rows=` satır gösterir, `height="1fr"` ya da sabit yükseklikle o alanı doldurur (kenar çubuğu); `multi=True` ile çoklu seçim. `Highlighted`, `Selected`, `Submitted` mesajları |
@@ -419,7 +419,7 @@ class Uygulama(ui.App):
 | `Chart` | Çizgi, alan ve çubuk grafiği: veri liste, `{ad: liste}` ya da `{etiket: sayı}`; eksenler yuvarlak adımlarla, noktalı ızgara, gösterge, fareyle en yakın noktanın değerleri; `append`/`max_points` ile canlı veri; `y_min`, `y_max`, `y_format`, `x=` etiketleri |
 | `Image` | Resim (dosya yolu ya da `pygame.Surface`): `fit="contain"` sığdırır, `cover` kırparak doldurur, `stretch` esnetir, `none` asıl boyut; ince çerçeve, `caption=`; açılamayan resim yerinde hata yazar; `source=` ile değişir |
 | `Canvas` | Serbest çizim: `line`, `lines`, `rect`, `circle`, `arc`, `polygon`, `text`, `image` çağrıları saklanır ve kendiliğinden yeniden çizilir; birim karakter/satır (`px=True` piksel); renkler tema adlarıyla; `remove(numara)`, `clear()`; `Canvas.Clicked`, `Canvas.Dragged` |
-| `Spinbox` | Sayı alanı `[ − 12 + ]`: ↑/↓ adım, PgUp/PgDn on adım, Home/End sınırlar, yazınca baştan yazılır (⏎ onaylar, Esc vazgeçer, virgül de ondalık), ± tık ve tekerlek; `min`, `max`, `step`, `format` |
+| `Spinbox` | Sayı alanı (aynı kutuda `− 12 +`): ↑/↓ adım, PgUp/PgDn on adım, Home/End sınırlar, yazınca baştan yazılır (⏎ onaylar, Esc vazgeçer, virgül de ondalık), ± tık ve tekerlek; `min`, `max`, `step`, `format` |
 | `Split` | Bölünebilir kapsayıcı: `with ui.Split(sizes=[32, "1fr"]):`; ayraç sürüklenir (oranlar korunur), çift tık başa döndürür, Alt+Shift+ok klavyeyle kaydırır; `direction="column"` alt alta; `fractions` / `set_fractions()` |
 | `Panel` | Başlıklı çerçeve; içindekileri alt alta dizer; `floating=True` yüzen kutular için |
 | `ScrollView` | Kaydırılabilir kapsayıcı: tekerlek, PgUp/PgDn, sürüklenebilir çubuk; odaktaki bileşeni görünür alana getirir |
@@ -508,6 +508,12 @@ görselleri PyPI'de de görünsün diye tam adresle bağlı.
 fonksiyon ve kısayol doğrudan; akışta `show()` ve `form()`'da bileşen; `termik yeni` ve
 `termik çalıştır --izle`; açık API'de tam tip ipuçları. Demo formu bu yazımla yeniden yazıldı.
 
+**Alanlar yazıdan ayrılsın turu:** düz yazının yanında `❯ C:\...`, `[ Elle ▾ ]`, `[ − 5 + ]`, `[✓]`
+basılmış bir satır gibi duruyordu. Yazı alanı, açılır seçim ve sayı alanı artık aynı ince çerçeveli
+kutuda (`field = "boxed"`; `filled`, `underline` ya da eski hali `plain` seçilebilir); onay kutusu ve
+radyo düğmesi yazı karakteri değil çizilmiş şekil (`toggle = "drawn"`, eski hali `text`). Butonlar
+da aynı sebeple varsayılan olarak dolu kutu (`button = "solid"`). Devre dışı buton ve alanlar soluk.
+
 ## Görünüm ayarları
 
 Renk teması (`THEMES`) ile biçim belirteçleri birbirinden bağımsızdır; `App(theme=…, density=…,
@@ -524,13 +530,15 @@ tercihlerinden gelir (aşağıda **Ayarlar**).
 | `button` | `solid` dolu kutu · `tinted` zeminli `[ Tamam ]` · `bracket` `[ Tamam ]` · `boxed` çerçeveli kutu · `angle` `< Tamam >` · `pill` hap | `solid` (modern: `pill`) |
 | `bar` | `block` `█▊░` · `segment` `▰▱` · `line` `━` · `ascii` `[##--]` | `block` |
 | `selection` | `inverse` tam satır ters renk · `pointer` `❯` + hafif zemin | `inverse` |
-| `radio` | `paren` `(•)` · `dot` `●` | `paren` |
+| `toggle` | `drawn` çizilmiş kare kutucuk ve yuvarlak düğme · `text` `[✓]` ve `radio` belirteci | `drawn` |
+| `radio` | `toggle = "text"` iken: `paren` `(•)` · `dot` `●` | `paren` |
 | `shadow` | `hard` kaydırılmış koyu blok · `soft` bulanık · `none` | `hard` |
 | `tabs` | `inverse` ters renkli · `folder` klasör sekmesi · `underline` alt çizgi · `bracket` `[ Genel ]` | `inverse` |
 | `slider` | `bar` ilerleme çubuğu gibi (`bar` belirtecini izler) · `line` ince iz, yuvarlak tutamak · `value` `◂ 60 ▸` | `bar` |
-| `select` | `bracket` `[ Artımlı ▾ ]` · `arrows` `◂ Artımlı ▸` · `underline` altı çizili | `bracket` |
+| `field` | Input, Select ve Spinbox'ın kutusu: `boxed` ince çerçeve (odakta vurgu rengi) · `filled` dolu zemin · `underline` alt çizgi · `plain` kutusuz (Input'un başında `❯`) | `boxed` (modern: `filled`) |
+| `select` | `field = "plain"` iken: `bracket` `[ Artımlı ▾ ]` · `arrows` `◂ Artımlı ▸` · `underline` altı çizili | `bracket` |
 | `image` | `smooth` yumuşak ölçek · `pixel` karakter ızgarasına oturan iri pikseller · `blocks` hücre başına iki piksel (▀) | `smooth` |
-| `spin` | `bracket` `[ − 12 + ]` · `arrows` `◂ 12 ▸` · `stacked` alan ve sağda ▴▾ | `bracket` (modern: `stacked`) |
+| `spin` | `field = "plain"` iken: `bracket` `[ − 12 + ]` · `arrows` `◂ 12 ▸` · `stacked` alan ve sağda ▴▾ | `bracket` (modern: `stacked`) |
 | `split` | `line` ince çizgi ve ⋮ tutamak · `bar` dolu sütun · `hidden` yalnızca fare gelince | `line` |
 | `form_label` | `left` etiketler solda, en uzun etikete göre hizalı · `top` alanın üstünde | `left` |
 | `chart` | `smooth` yumuşak kenarlı çizgiler · `braille` ⣀⡠ nokta ızgarası · `blocks` ▁▃▇ blokları | `smooth` |

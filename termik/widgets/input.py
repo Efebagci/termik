@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from typing import Callable
 
+import pygame
+
 from .. import clipboard
 from ..draw import Painter
 from ..events import Drop, Key, Message, MouseDown, MouseMove, TextInput
@@ -23,8 +25,10 @@ def _is_word(ch: str) -> bool:
 class Input(Widget):
     """Tek satırlık yazı alanı: blok imleç, seçim, pano, kelime kelime gezinme.
 
-    label= verilirse üstünde etiket ve solunda odak çubuğu olan iki satırlık bir alan olur.
-    Her değişiklikte Input.Changed, Enter'da Input.Submitted mesajı yukarı iletilir.
+    label= verilirse üstünde etiket olan iki satırlık bir alan olur (Form içinde etiketi Form çizer).
+    Alanın kutusu temadaki field belirtecinden gelir: boxed ince çerçeve, filled dolu zemin,
+    underline alt çizgi; plain kutusuzdur ve başında ❯ istemi durur. prompt= istemi her biçimde
+    açıkça verir ("$" gibi), prompt="" kaldırır. Her değişiklikte Input.Changed, Enter'da Input.Submitted mesajı yukarı iletilir.
 
     Tuşlar: ←/→ (ctrl ile kelime), home/end, shift ile seçim, ctrl+a, ctrl+c/x/v,
     backspace/delete (ctrl ile kelime), enter. Dosya yöneticisinden bırakılan yol bırakılan yere
@@ -50,10 +54,11 @@ class Input(Widget):
             self.input, self.value = input, value
 
     def __init__(self, value: str = "", *, label: str | None = None, placeholder: str = "",
-                 prompt: str = "❯", password: bool = False, max_length: int = 0,
+                 prompt: str | None = None, password: bool = False, max_length: int = 0,
                  on_submit: Callable | None = None, on_change: Callable | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.label, self.placeholder, self.prompt = label, placeholder, prompt
+        self.label, self.placeholder = label, placeholder
+        self.prompt = prompt  # None: field = "plain" iken ❯, kutulu alanda yok
         self.field_label = label  # Form içindeyse etiketi Form solda çizer, alan tek satır olur
         self.password, self.max_length = password, max_length
         self.on_submit, self.on_change = on_submit, on_change
@@ -252,16 +257,23 @@ class Input(Widget):
         c = self.content
         focused = self.has_focus
         x, y = c.x, c.y
-        if self._shows_label:  # etiket + solda odak çubuğu
-            p.surface.fill(th.accent if focused else th.border, (x, y + 3, 2, p.row * 2 - 6))
-            x += p.ch + p.ch // 2
+        boxed = th.field != "plain"
+        if self._shows_label:  # etiket; kutusuz alanda solda odak çubuğu
+            if not boxed:
+                p.surface.fill(th.accent if focused else th.border, (x, y + 3, 2, p.row * 2 - 6))
+                x += p.ch + p.ch // 2
             p.write(x, y, self.label, color=th.text if focused else th.dim)
             y += p.row
-        if self.prompt:
-            x += p.write(x, y, [(self.prompt + " ", Style(bold=True))], color=th.accent if focused else th.faint)
+        right = c.right
+        if boxed:
+            box = p.field(pygame.Rect(c.x, y, c.w, p.row), focused=focused, hot=self.hovered, disabled=self.disabled)
+            x, right = box.x, box.right + p.ch
+        prompt = self.prompt if self.prompt is not None else ("" if boxed else "❯")
+        if prompt:
+            x += p.write(x, y, [(prompt + " ", Style(bold=True))], color=th.accent if focused else th.faint)
         self._text_x = x
         shown = self._shown()
-        room = max(p.ch, c.right - x - p.ch)
+        room = max(p.ch, right - x - p.ch)
         caret = p.text.width([(shown[: self.cursor_position], _PLAIN)])
         # imleç görünür kalsın diye yatay kaydır
         if caret - self._scroll > room:
@@ -276,7 +288,7 @@ class Input(Widget):
                 x1 = x + p.text.width([(shown[: sel[1]], _PLAIN)]) - self._scroll
                 p.surface.fill(mix(th.bg, th.accent, 0.35), (x0, top, x1 - x0, p.text.height))
             if shown:
-                p.write(x - self._scroll, y, [(shown, _PLAIN)])
+                p.write(x - self._scroll, y, [(shown, _PLAIN)], color=th.faint if self.disabled else None)
             elif self.placeholder:
                 p.write(x + (p.ch if focused else 0), y, [(self.placeholder, _PLAIN)], color=th.faint)
             if focused and self._caret_on():  # blok imleç; altındaki harf ters renkte

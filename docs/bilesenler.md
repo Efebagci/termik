@@ -54,7 +54,7 @@ with ui.Row(gap=2):
 
 ## Form, Input, Select, Slider, Spinbox
 
-Form etiketleri solda hizalı bir sütunda çizer; `bind=` alanı uygulamanın özniteliğine bağlar.
+Form etiketleri solda hizalı bir sütunda çizer; `bind=` alanı uygulamanın özniteliğine bağlar. Yazı alanı, açılır seçim ve sayı alanı yazıdan ayrılsın diye aynı ince çerçeveli kutuda durur (`field`: `boxed` · `filled` · `underline` · `plain`).
 
 ![Form, Input, Select, Slider, Spinbox](galeri/form.png)
 
@@ -71,7 +71,7 @@ with ui.Form():
 
 ## Checkbox, RadioSet
 
-Onay kutusu ve tek seçimli grup; Space, ←/→ ve tıkla değişir.
+Onay kutusu ve tek seçimli grup; Space, ←/→ ve tıkla değişir. Kutucuk ve yuvarlak düğme çizilmiş şekillerdir (`toggle`: `drawn`; `text` ile `[✓]` ve `(•)`).
 
 ![Checkbox, RadioSet](galeri/secim.png)
 

@@ -56,6 +56,39 @@ def _soft_shadow(w: int, h: int, radius: int, blur: int, alpha: int) -> pygame.S
     return blur_fn(img, blur) if blur_fn else img
 
 
+@lru_cache(maxsize=64)
+def _check_sprite(size: int, on: bool, main: Color, inner: Color, tick: Color, radius: int) -> pygame.Surface:
+    """Onay kutusu: işaretliyken dolu kare ve içinde ✓, değilken ince çerçeveli boş kare."""
+    big = size * SS
+    img = pygame.Surface((big, big), pygame.SRCALPHA)
+    img.fill((*main, 0))
+    if on:
+        pygame.draw.rect(img, (*main, 255), (0, 0, big, big), border_radius=radius * SS)
+        width = max(SS, round(big * 0.14))
+        points = [(round(big * x), round(big * y)) for x, y in ((0.24, 0.52), (0.43, 0.71), (0.77, 0.31))]
+        pygame.draw.lines(img, (*tick, 255), False, points, width)
+        for point in points:  # köşeler yuvarlak birleşsin
+            pygame.draw.circle(img, (*tick, 255), point, width // 2)
+    else:
+        pygame.draw.rect(img, (*inner, 255), (0, 0, big, big), border_radius=radius * SS)
+        pygame.draw.rect(img, (*main, 255), (0, 0, big, big), max(SS, round(big * 0.1)), border_radius=radius * SS)
+    return pygame.transform.smoothscale(img, (size, size))
+
+
+@lru_cache(maxsize=64)
+def _radio_sprite(size: int, on: bool, main: Color, inner: Color) -> pygame.Surface:
+    """Yuvarlak düğme: içi boş halka; seçiliyken vurgu renginde halka ve ortada nokta."""
+    big = size * SS
+    img = pygame.Surface((big, big), pygame.SRCALPHA)
+    img.fill((*main, 0))
+    c = big // 2
+    pygame.draw.circle(img, (*inner, 255), (c, c), c)
+    pygame.draw.circle(img, (*main, 255), (c, c), c, max(SS, round(big * (0.12 if on else 0.1))))
+    if on:
+        pygame.draw.circle(img, (*main, 255), (c, c), round(big * 0.24))
+    return pygame.transform.smoothscale(img, (size, size))
+
+
 class Painter:
     """Bir yüzeye temayla çizim yapan yardımcı.
 
@@ -292,15 +325,80 @@ class Painter:
         self.round_rect(rect, th.raised if focused else mix(self.panel_bg, th.raised, 0.55), radius=r)
         return None
 
+    # ── form alanları ve kutucuklar ───────────────────────
+
+    def field(self, rect: RectLike, *, focused: bool = False, hot: bool = False, disabled: bool = False) -> pygame.Rect:
+        """Form alanı kutusu çiz (theme.field: Input, Select, Spinbox); içeriğin yazılacağı iç
+        dikdörtgeni döndür. boxed ince çerçeve (odakta vurgu rengi), filled dolu zemin (odakta altta
+        vurgu çizgisi), underline alt çizgi, plain hiçbir şey çizmez."""
+        th = self.theme
+        rect = pygame.Rect(rect)
+        style = th.field
+        if style == "plain":
+            return rect
+        line = (mix(th.border, th.bg, 0.3) if disabled else th.accent if focused
+                else mix(th.border, th.dim, 0.55) if hot else mix(th.border, th.dim, 0.25))
+        r = min(th.radius, 4)
+        if style == "boxed":
+            self.outline(rect, line, radius=r)
+        elif style == "filled":
+            self.round_rect(rect, mix(self.panel_bg, th.raised, 0.45 if disabled else 0.95 if hot else 0.8), radius=r)
+            if focused:
+                self.surface.fill(th.accent, (rect.x + r, rect.bottom - 2, rect.w - 2 * r, 2))
+        else:  # underline
+            t = 2 if focused else 1
+            self.surface.fill(line, (rect.x, rect.bottom - t, rect.w, t))
+        return rect.inflate(-self.ch, 0)
+
     def radio(self, on: bool) -> str:
-        """Radyo işareti markup'ı: (•) ( ) ya da ● ○."""
+        """Radyo işaretinin markup'ı. toggle = "drawn" iken yer tutan boşluktur, şekli draw_radio çizer;
+        "text" iken (•) ( ) ya da ● ○."""
+        if self.theme.toggle == "drawn":
+            return "  "
         if self.theme.radio == "paren":
             return "[faint]([/][accent]•[/][faint])[/]" if on else "[faint]( )[/]"
         return "[accent]●[/]" if on else "[faint]○[/]"
 
     def check(self, on: bool) -> str:
-        """Onay kutusu markup'ı: [✓] [ ]."""
+        """Onay kutusunun markup'ı. toggle = "drawn" iken yer tutan boşluktur, şekli draw_check çizer;
+        "text" iken [✓] [ ]."""
+        if self.theme.toggle == "drawn":
+            return "  "
         return "[faint]\\[[/][green]✓[/][faint]][/]" if on else "[faint]\\[ ][/]"
+
+    def _toggle_colors(self, on: bool, focused: bool, disabled: bool, color: Color | None,
+                       mark: Color | None) -> tuple[Color, Color, Color]:
+        """(çerçeve ya da dolgu, iç zemin, işaret) renkleri."""
+        th = self.theme
+        if color is not None:  # ters renkli satırın içinde
+            return color, mark or th.accent, mark or th.accent
+        if disabled:
+            return mix(th.faint, th.bg, 0.3), mix(self.panel_bg, th.raised, 0.3), th.bg
+        main = th.accent if on or focused else mix(th.border, th.dim, 0.6)
+        return main, mix(self.panel_bg, th.raised, 0.5), th.bg
+
+    def _toggle_box(self, x: int, y: int) -> tuple[int, int, int]:
+        """İki karakterlik yerin ortasındaki şeklin (sol, üst, boyut)."""
+        size = max(8, round(self.text.height * 0.74))
+        return x + (self.ch * 2 - size) // 2, y + (self.row - size) // 2, size
+
+    def draw_check(self, x: int, y: int, on: bool, *, focused: bool = False, disabled: bool = False,
+                   color: Color | None = None, mark: Color | None = None) -> None:
+        """Çizilmiş onay kutusu; (x, y) check()'in bıraktığı iki karakterlik yerin sol üstü.
+        toggle = "text" iken bir şey yapmaz (işaret yazıdadır)."""
+        if self.theme.toggle != "drawn":
+            return
+        left, top, size = self._toggle_box(x, y)
+        main, inner, tick = self._toggle_colors(on, focused, disabled, color, mark)
+        self.surface.blit(_check_sprite(size, on, main, inner, tick, min(self.theme.radius, 3) + 2), (left, top))
+
+    def draw_radio(self, x: int, y: int, on: bool, *, focused: bool = False, disabled: bool = False) -> None:
+        """Çizilmiş yuvarlak seçim düğmesi; (x, y) radio()'nun bıraktığı yerin sol üstü."""
+        if self.theme.toggle != "drawn":
+            return
+        left, top, size = self._toggle_box(x, y)
+        main, inner, _ = self._toggle_colors(on, focused, disabled, None, None)
+        self.surface.blit(_radio_sprite(size, on, main, inner), (left, top))
 
     def button_size(self, label: str, primary: bool = False) -> tuple[int, int]:
         th = self.theme

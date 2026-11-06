@@ -858,12 +858,14 @@ Bunların üstüne tek tek **biçim belirteçleri** ezilebilir:
 | `bar` | `block` · `segment` · `line` · `ascii` |
 | `selection` | `inverse` · `pointer` |
 | `shadow` | `hard` · `soft` · `none` |
-| `radio` | `paren` · `dot` |
+| `toggle` | `drawn` (varsayılan; kutucuk ve yuvarlak düğme çizilmiş şekil) · `text` (`[✓]`, `(•)`) |
+| `radio` | `paren` · `dot` (yalnızca `toggle = "text"` iken) |
 | `tabs` | `inverse` · `folder` · `underline` · `bracket` |
 | `slider` | `bar` · `line` · `value` |
-| `select` | `bracket` · `arrows` · `underline` |
+| `field` | `boxed` (varsayılan; Input, Select, Spinbox ince çerçeveli kutuda) · `filled` · `underline` · `plain` (kutusuz, eski hal) |
+| `select` | `bracket` · `arrows` · `underline` (yalnızca `field = "plain"` iken) |
 | `image` | `smooth` · `pixel` · `blocks` |
-| `spin` | `bracket` · `arrows` · `stacked` |
+| `spin` | `bracket` · `arrows` · `stacked` (yalnızca `field = "plain"` iken) |
 | `split` | `line` · `bar` · `hidden` |
 | `form_label` | `left` · `top` |
 | `chart` | `smooth` · `braille` · `blocks` |

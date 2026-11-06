@@ -34,7 +34,9 @@ class Spinbox(Widget):
         Spinbox(12, min=1, max=99)
         Spinbox(0.5, min=0, max=1, step=0.05, format="{:.0%}")
 
-    Görünüşü temadaki spin belirtecinden gelir: bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾.
+    Kutusu temadaki field belirtecinden gelir (Input ve Select ile aynı): boxed ince çerçeve, filled
+    dolu zemin, underline alt çizgi; − solda, + sağda. field = "plain" iken spin belirteci geçerlidir:
+    bracket [ − 12 + ] · arrows ◂ 12 ▸ · stacked sağda ▴▾.
     """
 
     default_width = "auto"
@@ -203,6 +205,8 @@ class Spinbox(Widget):
 
     def measure(self, p: Painter, width: int) -> tuple[int, int]:
         field = self._field(p)
+        if p.theme.field != "plain":  # kutu: iç boşluk + − ve + ile aralarındaki boşluk
+            return field + p.ch * 5, p.row
         extra = {"arrows": 4, "stacked": 4}.get(p.theme.spin, 8)  # ◂ … ▸ · … ▴▾ · [ − … + ]
         return field + p.ch * extra, p.row
 
@@ -227,6 +231,15 @@ class Spinbox(Widget):
         if self.hovered and self._mouse is not None:
             mouse = self._mouse
             hover = "-" if self._minus.collidepoint(mouse) else "+" if self._plus.collidepoint(mouse) else None
+        if th.field != "plain":  # Input ve Select ile aynı kutu; − solda, + sağda
+            box = p.field(pygame.Rect(c.x, y, c.w, p.row), focused=focused, hot=self.hovered, disabled=self.disabled)
+            self._minus = pygame.Rect(c.x, y, p.ch * 2, p.row)
+            self._plus = pygame.Rect(c.right - p.ch * 2, y, p.ch * 2, p.row)
+            sign = th.accent if focused else dim
+            p.write(box.x, y, "−", color=th.accent if hover == "-" else sign)
+            p.write(box.right, y, "+", color=th.accent if hover == "+" else sign, right=True)
+            self._write_value(p, box.right - p.ch * 2, y, th.faint if self.disabled else th.text, th.accent)
+            return
         if style == "arrows":
             arrow = th.accent if focused else th.faint
             self._minus = pygame.Rect(c.x, y, p.ch * 2, p.row)

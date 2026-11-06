@@ -14,7 +14,11 @@ from ..widget import Widget, action
 
 
 class Checkbox(Widget):
-    """[✓] seçenek. Tıklayınca ya da odaktayken Space/Enter ile değişir; Checkbox.Changed iletir."""
+    """Onay kutusu. Tıklayınca ya da odaktayken Space/Enter ile değişir; Checkbox.Changed iletir.
+
+    Kutucuk temadaki toggle belirteciyle çizilir: drawn gerçek kare (işaretliyken vurgu renginde dolu,
+    içinde ✓), text [✓] [ ].
+    """
 
     default_width = "auto"
     default_height = "auto"
@@ -45,6 +49,7 @@ class Checkbox(Widget):
         if self.hovered or self.has_focus:
             p.hover((c.x, c.y, p.text.width(self._markup(p)) + p.ch, p.row))
         p.write(c.x + p.ch // 2, c.y, self._markup(p), Style(bold=self.has_focus))
+        p.draw_check(c.x + p.ch // 2, c.y, self.value, focused=self.has_focus, disabled=self.disabled)
 
     def toggle(self) -> None:
         self.value = not self.value
@@ -65,7 +70,10 @@ class Checkbox(Widget):
 
 
 class RadioSet(Widget):
-    """(•) Tam  ( ) Artımlı — tek seçimli grup. ←/→ ile değişir; RadioSet.Changed iletir.
+    """Tek seçimli grup: ◉ Tam  ○ Artımlı. ←/→ ile değişir; RadioSet.Changed iletir.
+
+    Düğmeler temadaki toggle belirteciyle çizilir: drawn gerçek yuvarlak düğme, text radio
+    belirtecindeki gibi (•) ( ) ya da ● ○.
 
     label= verilirse solunda label_width karakter genişliğinde etiket olur.
     """
@@ -134,6 +142,7 @@ class RadioSet(Widget):
             if i == self._hover_i or (self.has_focus and current):
                 p.hover(rect)
             p.write(rect.x + p.ch // 2, c.y, self._markup(p, i), Style(bold=self.has_focus and current))
+            p.draw_radio(rect.x + p.ch // 2, c.y, current, focused=self.has_focus and current, disabled=self.disabled)
 
     def _option_at(self, x: int, y: int) -> int | None:
         return next((i for i, r in enumerate(self._rects) if r.collidepoint(x, y)), None)

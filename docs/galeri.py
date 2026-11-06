@@ -41,7 +41,8 @@ with ui.Row(gap=2):
     yield ui.Button("Gönder", kaydet, variant="primary", disabled=True)
 '''),
     ("form", "Form, Input, Select, Slider, Spinbox", "Form etiketleri solda hizalı bir sütunda çizer; "
-     "`bind=` alanı uygulamanın özniteliğine bağlar.", '''
+     "`bind=` alanı uygulamanın özniteliğine bağlar. Yazı alanı, açılır seçim ve sayı alanı yazıdan ayrılsın "
+     "diye aynı ince çerçeveli kutuda durur (`field`: `boxed` · `filled` · `underline` · `plain`).", '''
 with ui.Form():
     yield ui.Input(label="Kaynak", bind="kaynak", placeholder="klasör")
     yield ui.Input("gizli", label="Parola", password=True)
@@ -49,7 +50,8 @@ with ui.Form():
     yield ui.Slider(6, max=9, label="Düzey")
     yield ui.Spinbox(5, min=1, max=50, label="Sakla")
 '''),
-    ("secim", "Checkbox, RadioSet", "Onay kutusu ve tek seçimli grup; Space, ←/→ ve tıkla değişir.", '''
+    ("secim", "Checkbox, RadioSet", "Onay kutusu ve tek seçimli grup; Space, ←/→ ve tıkla değişir. Kutucuk ve "
+     "yuvarlak düğme çizilmiş şekillerdir (`toggle`: `drawn`; `text` ile `[✓]` ve `(•)`).", '''
 with ui.Form():
     with ui.Row(label="Seçenekler", gap=2):
         yield ui.Checkbox("Sıkıştır", True)

@@ -47,7 +47,7 @@ _HEADER = """\
 # termik ayarları
 # Öncelik: koddaki değer > ortam değişkeni (TERMIK_THEME…) > bu dosya > varsayılan.
 # Ayarlanabilenler: theme, look, density, mode, dialogs, fullscreen, font, font_bold ve biçim belirteçleri
-# (title, focus, button, bar, selection, shadow, radio, tabs, slider, select, image, spin,
+# (title, focus, button, bar, selection, shadow, toggle, radio, tabs, slider, field, select, image, spin,
 # split, form_label, chart, radius, panel_fill, font_size, line_height, pad_x, pad_y) ile renkler (accent = "#ff8800" gibi).
 """
 

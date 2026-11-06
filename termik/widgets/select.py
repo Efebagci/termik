@@ -21,8 +21,9 @@ class Select(Widget):
 
         Select(["Tam", "Artımlı", "Diferansiyel"], index=1)
 
-    Görünüşü temadaki select belirtecinden gelir: bracket [ Artımlı ▾ ], arrows ◂ Artımlı ▸, underline
-    altı çizili. Genişliği en uzun seçeneğe göre sabittir; değer değişince yerleşim oynamaz.
+    Kutusu temadaki field belirtecinden gelir (Input ve Spinbox ile aynı): boxed ince çerçeve, filled
+    dolu zemin, underline alt çizgi; değerin sağında ▾ durur. field = "plain" iken select belirteci
+    geçerlidir: bracket [ Artımlı ▾ ], arrows ◂ Artımlı ▸, underline altı çizili. Genişliği en uzun seçeneğe göre sabittir; değer değişince yerleşim oynamaz.
     """
 
     default_width = "auto"
@@ -66,6 +67,8 @@ class Select(Widget):
 
     def measure(self, p: Painter, width: int) -> tuple[int, int]:
         longest = max((p.text.width([(o, Style(bold=True))]) for o in self.options), default=p.ch * 4)
+        if p.theme.field != "plain":  # kutu: iç boşluk + boşluk ve ▾
+            return longest + p.ch * 4, p.row
         extra = {"arrows": 4, "underline": 3}.get(p.theme.select, 6)  # ◂ … ▸ · … ▾ · [ … ▾ ]
         return longest + p.ch * extra, p.row
 
@@ -75,6 +78,12 @@ class Select(Widget):
         style = th.select
         focused = self.has_focus
         y = c.y
+        if th.field != "plain":
+            box = p.field(pygame.Rect(c.x, y, c.w, p.row), focused=focused, hot=self.hovered, disabled=self.disabled)
+            p.write(box.right, y, "▾", color=th.faint if self.disabled else th.accent if focused else th.dim, right=True)
+            label = p.text.elide([(self.value or "", Style(bold=focused))], box.w - p.ch * 2)
+            p.write(box.x, y, label, color=th.faint if self.disabled else th.text)
+            return
         if style == "arrows":
             arrow = th.accent if focused else th.faint
             p.write(c.x, y, "◂", color=arrow)
